@@ -19,6 +19,45 @@ Open http://localhost:8000. Demo data loads on first start: one shop, 20 custome
 
 Without a Sarvam key the app still runs: use the **Type** button, and replies are spoken by the browser.
 
+## Quick start (Windows)
+
+Needs Python 3.10 or newer (the code uses `str | None` type syntax) and ffmpeg for the microphone. Install both once with winget, then open a **new** PowerShell window so they are on the PATH:
+
+```powershell
+winget install -e --id Python.Python.3.12
+winget install -e --id Gyan.FFmpeg
+```
+
+Then, in the project folder:
+
+```powershell
+cd khata-saathi
+py -3.12 -m venv .venv-win
+.\.venv-win\Scripts\python.exe -m pip install -r requirements.txt
+copy .env.example .env          # then put your SARVAM_API_KEY in .env
+.\.venv-win\Scripts\python.exe -m uvicorn app.main:app --port 8000
+```
+
+Open http://localhost:8000. After the first setup, `run-windows.cmd` (double-click) starts the server with the same command.
+
+Notes for Windows:
+- The virtualenv is `.venv-win`; the `.venv` folder in a Mac zip is useless on Windows and can be deleted.
+- If `npm` is blocked by "running scripts is disabled", run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, or call `npm.cmd` instead of `npm`.
+- To share the app or use the mic on a phone, install the tunnel with `winget install --id Cloudflare.cloudflared` and follow "Use it on a phone" below.
+
+## The merchant app (React)
+
+The merchant screens are a Vite + React + TypeScript app in `web/`, styled on Paytm's design system (`.superdesign/paytm-pods-spec.md`). The built app is committed in `static/app/`, so a clone runs without Node. To change the UI you need Node 20+:
+
+```powershell
+cd web
+npm install
+npm run dev        # hot reload on http://localhost:5173, proxied to the backend on :8000
+npm run build      # writes static/app, which the backend serves at /
+```
+
+The original one-screen UI is still served at `/legacy`.
+
 ## Use it on a phone
 
 Phone browsers only allow the microphone on **https** pages, so use a tunnel:
