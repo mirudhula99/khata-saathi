@@ -20,7 +20,7 @@ import { useKhata } from '@/store/useKhata';
  */
 export function SaathiPage({ focusMic = false }: { focusMic?: boolean }) {
   const [params, setParams] = useSearchParams();
-  const { state, lang, pending, lastReply, lastTranscript, lastWarning, dismiss } = useKhata();
+  const { state, lang, pending, lastReply, lastWarning, dismiss } = useKhata();
   const [manual, setManual] = useState(false);
   const [manualKind, setManualKind] = useState<'udhaar' | 'cash'>('udhaar');
   const [joinQr, setJoinQr] = useState(false);
@@ -60,7 +60,6 @@ export function SaathiPage({ focusMic = false }: { focusMic?: boolean }) {
                   <SaathiCard
                     text={lastReply}
                     tone={lastWarning === 'error' ? 'error' : 'default'}
-                    hint={lastTranscript ? `You said: "${lastTranscript}"` : undefined}
                     actions={<PaytmButton variant="ghost" size="sm" onClick={dismiss} className="px-3">Done</PaytmButton>}
                   />
                 )}

@@ -11,14 +11,15 @@ import { useKhata } from '@/store/useKhata';
 /**
  * Record payment (spec section 5, "Record payment"): a sheet-style page. Amount input (Manrope 32/800 with a leading ₹),
  * live "₹300 of ₹800 · ₹500 left" as a PaytmAlert(info), segmented chips Paytm link | Cash, full-width primary pill.
- * Both go through /api/command as the sentence the merchant would have said, so Saathi reads it back first.
+ * Both go through /api/command as the sentence the merchant would have said. This is a by-hand form, so the button
+ * is the yes: it is saved straight away unless the server understood something different (then it reads it back).
  * A link payment closes udhaar only when the verified payment event arrives; cash is recorded after the merchant's yes.
  */
 export function SettleUpPage() {
   const { id = '' } = useParams<{ id: string }>();
   const cid = Number(id);
   const navigate = useNavigate();
-  const { state, pending, lastDone, doneSeq, command, loading } = useKhata();
+  const { state, pending, lastDone, doneSeq, formEntry, loading } = useKhata();
   const c = state?.customers.find((x) => x.id === cid);
   const balance = c?.balance ?? 0;
   const [amount, setAmount] = useState<string>(String(balance || ''));
@@ -38,7 +39,7 @@ export function SettleUpPage() {
     setSent(doneSeq);
     // This page already knows the customer, so its id goes with the sentence: the server never matches by name,
     // and a payment can't land on the other Ramesh.
-    await command(method === 'cash' ? `${c.name} paid ${n} cash` : `Ask ${c.name} for ${n}`, cid);
+    await formEntry(method === 'cash' ? `${c.name} paid ${n} cash` : `Ask ${c.name} for ${n}`, { amount: n, customerId: cid });
   };
 
   const quick = [balance, Math.round(balance / 2), 100].filter((v, i, a) => v > 0 && v <= balance && a.indexOf(v) === i);
@@ -93,7 +94,7 @@ export function SettleUpPage() {
               <p className="mt-3 text-[12px] leading-snug text-ink-2">
                 {method === 'link'
                   ? `Sends ${c.name} a payment link for ${inr(n)} on WhatsApp. The balance changes only when the verified payment arrives.${c.consent !== 'granted' ? ' Needs WhatsApp consent first.' : ''}`
-                  : 'Cash paid at the counter. Saathi reads it back; it is recorded after you say yes.'}
+                  : 'Cash paid at the counter. Recorded when you tap Note cash.'}
               </p>
             </PaytmCard>
 

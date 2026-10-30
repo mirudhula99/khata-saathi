@@ -26,7 +26,9 @@ export function MicHero({ autoFocus = false, correctionHint = false, after }: { 
   const inputRef = useRef<HTMLInputElement>(null);
   const micRef = useRef<HTMLButtonElement>(null);
 
-  const onFinal = useCallback((t: string) => { void command(t); }, [command]);
+  // Spoken (browser speech) and the listening sheet's example bubbles count as voice: Saathi answers aloud.
+  // The text box below is typing, so it stays quiet.
+  const onFinal = useCallback((t: string) => { void command(t, undefined, true); }, [command]);
   const onClip = useCallback((blob: Blob, filename: string) => { void voice(blob, filename); }, [voice]);
   const ws = useSpeech(lang, onFinal);
   const rec = useRecorder(onClip);
@@ -39,7 +41,7 @@ export function MicHero({ autoFocus = false, correctionHint = false, after }: { 
   const tap = () => { unlockAudio(); if (serverVoice) void rec.toggle(); else ws.start(); };
   // Listening sheet: ✕ cancels without sending; tapping an example bubble cancels the mic and sends that sentence instead.
   const cancel = () => { if (serverVoice) rec.cancel(); else ws.cancel(); };
-  const pick = (text: string) => { cancel(); void command(text); };
+  const pick = (text: string) => { cancel(); void command(text, undefined, true); };
   const submit = (e: FormEvent) => { e.preventDefault(); const v = typed.trim(); if (!v) return; setTyped(''); void command(v); };
 
   const status = loading ? 'Understanding…'

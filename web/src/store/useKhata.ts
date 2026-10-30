@@ -18,11 +18,13 @@ interface KhataState {
   lastWarning: string | null;
   lastDone: CommandResponse['done'];
   doneSeq: number;                     // bumps every time an action completes (screens use it to navigate / refetch)
+  viaVoice: boolean;                   // the current entry was spoken: only then are Saathi's replies read aloud
 
   refresh: () => Promise<void>;
   setLang: (l: LangCode) => Promise<void>;
-  command: (text: string, customerId?: number) => Promise<void>;
+  command: (text: string, customerId?: number, viaVoice?: boolean) => Promise<void>;
   addCustomer: (name: string) => Promise<number | null>;
+  formEntry: (text: string, expect: { amount: number; customerId?: number }) => Promise<void>;
   voice: (blob: Blob, filename: string) => Promise<void>;
   confirm: () => Promise<void>;
   reject: () => Promise<void>;
@@ -46,7 +48,9 @@ export const useKhata = create<KhataState>((set, get) => {
   /** Every command / action endpoint returns the same shape; this is the one place it is interpreted. */
   const handle = async (res: CommandResponse) => {
     set({ pending: res.pending, lastReply: res.reply_text, lastTranscript: res.transcript, lastWarning: res.warning, lastDone: res.done });
-    speak(res.speak_text, res.reply_lang, res.reply_audio_url);
+    // Typed or by-hand entries stay quiet (the merchant is looking at the screen); spoken ones are answered aloud.
+    // Save / Cancel / correct / choose keep the mode of the entry they belong to.
+    if (get().viaVoice) speak(res.speak_text, res.reply_lang, res.reply_audio_url);
     if (res.done) {
       set((s) => ({ doneSeq: s.doneSeq + 1 }));
       toast.success(res.done.type === 'request' ? 'Payment link sent' : 'Saved', { description: res.reply_text });
@@ -62,7 +66,7 @@ export const useKhata = create<KhataState>((set, get) => {
 
   return {
     state: null, error: null, loading: false, lang: 'ta-IN',
-    pending: null, lastReply: null, lastTranscript: null, lastWarning: null, lastDone: null, doneSeq: 0,
+    pending: null, lastReply: null, lastTranscript: null, lastWarning: null, lastDone: null, doneSeq: 0, viaVoice: false,
 
     refresh: async () => {
       try {
@@ -80,7 +84,7 @@ export const useKhata = create<KhataState>((set, get) => {
       try { await api.patchMerchant({ language: lang }); await get().refresh(); } catch (e) { toast.error(errMsg(e)); }
     },
 
-    command: async (text, customerId) => { const t = text.trim(); if (!t) return; await run(() => api.command(t, get().lang, customerId)); },
+    command: async (text, customerId, viaVoice = false) => { const t = text.trim(); if (!t) return; set({ viaVoice }); await run(() => api.command(t, get().lang, customerId)); },
     addCustomer: async (name) => {
       try {
         const c = await api.addCustomer({ name });
@@ -89,7 +93,22 @@ export const useKhata = create<KhataState>((set, get) => {
         return c.id;
       } catch (e) { toast.error(errMsg(e)); return null; }
     },
-    voice: async (blob, filename) => run(() => api.voice(blob, filename, get().lang)),
+    // By-hand forms (Add by hand, Record payment): the merchant already chose the customer and typed the amount, so
+    // tapping the form's button is the "yes" and there is no second read-back. The server still checks everything;
+    // it is confirmed only if it understood exactly the form (same customer, or truly new; same amount). Otherwise
+    // the read-back shows as for voice, so nothing different from the form is ever saved without a look.
+    formEntry: async (text, expect) => {
+      const t = text.trim(); if (!t) return;
+      set({ viaVoice: false });
+      await run(async () => {
+        const res = await api.command(t, get().lang, expect.customerId);
+        const p = res.pending;
+        const sameCustomer = expect.customerId != null ? p?.customer?.id === expect.customerId : p != null && !p.customer;
+        if (p && p.state === 'awaiting_confirm' && p.amount === expect.amount && sameCustomer) return api.confirm(p.id, get().lang);
+        return res;
+      });
+    },
+    voice: async (blob, filename) => { set({ viaVoice: true }); await run(() => api.voice(blob, filename, get().lang)); },
 
     confirm: async () => { const id = pendingId(); if (id == null) return; await run(() => api.confirm(id, get().lang)); },
     reject: async () => { const id = pendingId(); if (id == null) { set({ pending: null }); return; } await run(() => api.reject(id, get().lang)); },

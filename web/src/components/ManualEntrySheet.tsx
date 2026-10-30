@@ -17,7 +17,7 @@ type Kind = 'udhaar' | 'cash';
  * received payment only (for customers who owe something). Payment links live on the customer's Record payment page.
  */
 export function ManualEntrySheet({ open, onOpenChange, customerId, startNew, startKind }: { open: boolean; onOpenChange: (o: boolean) => void; customerId?: number | null; startNew?: boolean; startKind?: Kind }) {
-  const { state, command, addCustomer, loading } = useKhata();
+  const { state, formEntry, addCustomer, loading } = useKhata();
   const customers = useMemo(() => state?.customers ?? [], [state]);
   const [query, setQuery] = useState('');
   const [picking, setPicking] = useState(false);
@@ -52,7 +52,7 @@ export function ManualEntrySheet({ open, onOpenChange, customerId, startNew, sta
     if (!valid) return;
     const sentence = kind === 'udhaar' ? `${who} ${n} udhaar${items.trim() ? ' ' + items.trim() : ''}` : `${who} paid ${n} cash`;
     onOpenChange(false);
-    await command(sentence, customer?.id);
+    await formEntry(sentence, { amount: n, customerId: customer?.id });
   };
 
   const saveCustomerOnly = async () => {
@@ -106,7 +106,7 @@ export function ManualEntrySheet({ open, onOpenChange, customerId, startNew, sta
 
             <p className="text-[12px] leading-snug text-ink-2">
               {kind === 'udhaar' ? 'Customer takes goods now, pays later. They confirm or flag it on WhatsApp.'
-                : 'Cash paid at the counter. Recorded as a repayment after you say yes.'}
+                : 'Cash paid at the counter. Recorded as a repayment.'}
             </p>
 
             {kind === 'udhaar' && (
@@ -124,14 +124,14 @@ export function ManualEntrySheet({ open, onOpenChange, customerId, startNew, sta
 
             <PaytmAlert tone="info">{addOnly
               ? `Leave the amount empty to add ${newName} with nothing owed.`
-              : 'Saathi reads it back on the home screen. Nothing is saved until you tap Save.'}</PaytmAlert>
+              : `Saved when you tap ${kind === 'cash' ? 'Record payment' : 'Save'}.`}</PaytmAlert>
           </div>
         </div>
 
         <div className="shrink-0 px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-2">
           {addOnly
             ? <PaytmButton full disabled={loading} onClick={() => void saveCustomerOnly()}>Add customer</PaytmButton>
-            : <PaytmButton full disabled={!valid || loading} onClick={() => void save()}>Next</PaytmButton>}
+            : <PaytmButton full disabled={!valid || loading} onClick={() => void save()}>{kind === 'cash' ? 'Record payment' : 'Save'}</PaytmButton>}
         </div>
       </SheetContent>
     </Sheet>

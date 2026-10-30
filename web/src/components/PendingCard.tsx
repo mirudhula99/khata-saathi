@@ -25,13 +25,10 @@ export function PendingCard() {
   return (
     <SaathiCard
       text={lastReply || detail}
-      hint={<>
-        <span className="block">{detail}</span>
-        {lastWarning === 'amount_from_transcript' && <span className="block text-error-ink">Check the amount: Saathi used the number it heard.</span>}
-        {lastWarning === 'amount_out_of_range' && <span className="block text-error-ink">That amount is not allowed. Try again.</span>}
-        <span className="block">Nothing is saved until you tap {saveLabel}. Say "No, 150" or tap Change amount to correct.</span>
-        {pending.transcript && <span className="block">You said: "{pending.transcript}"</span>}
-      </>}
+      // The read-back already says who and how much; only a warning about the amount is worth a second line.
+      hint={lastWarning === 'amount_from_transcript' ? <span className="text-error-ink">Check the amount: Saathi used the number it heard.</span>
+        : lastWarning === 'amount_out_of_range' ? <span className="text-error-ink">That amount is not allowed. Try again.</span>
+        : undefined}
       actions={editing ? (
         <form className="flex w-full items-center gap-2" onSubmit={(e) => { e.preventDefault(); const v = parseInt(amount, 10); if (v > 0) void correct(v).then(() => setEditing(false)); }}>
           <label className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-full bg-card px-4 shadow-card">
