@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0E5A47">
+  <title>Customer phone · Khata Saathi</title>
+  <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hind:wght@400;600;700&family=Hind+Guntur:wght@400;600&family=Hind+Madurai:wght@400;600&family=Hind+Mysuru:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="phone-page">
+  <div class="phone">
+    <header class="phone-top">
+      <h1 id="shop">Shop messages</h1>
+      <p>WhatsApp <span class="fineprint">· sandbox · no real money</span></p>
+      <label class="visually-hidden" for="who">Customer</label>
+      <select id="who"></select>
+    </header>
+    <main id="chat" class="chat" aria-live="polite"></main>
+    <footer class="phone-foot">
+      <span id="footNote">Replies go back to the shop.</span>
+      <button id="stopBtn" class="chip" type="button">STOP</button>
+    </footer>
+  </div>
+  <script src="/static/backbar.js"></script>
+  <script type="module" src="/static/customer.js"></script>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#002E6E">
+  <title>Pay · Khata Saathi</title>
+  <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hind:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main class="simple-page">
+    <script src="/static/backbar.js"></script>
+    <section id="panel" class="panel" aria-live="polite">
+      <p class="muted">Loading payment…</p>
+    </section>
+  </main>
+  <script type="module">
+    import { api, h, inr } from "/static/common.js";
+    const panel = document.getElementById("panel");
+    const linkId = location.pathname.split("/").pop();
+
+    function done(r, info) {
+      panel.replaceChildren(
+        h("div", { class: "done-mark" }, svgCheck()),
+        h("h1", {}, `Paid ₹${inr(r.amount)}`),
+        h("p", { class: "to" }, `to ${info.shop}`),
+        h("p", {}, r.balance > 0 ? `Remaining with ${info.shop}: ₹${inr(r.balance)}` : "Nothing left to pay. Thank you!"),
+        h("a", { class: "btn", href: `/customer?id=${info.customer_id}`, style: "width:100%;margin-top:12px" }, "Back to messages"));
+    }
+    function svgCheck() {
+      const ns = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(ns, "svg");
+      svg.setAttribute("viewBox", "0 0 24 24");
+      const path = document.createElementNS(ns, "path");
+      path.setAttribute("d", "M5 12.5l4.5 4.5L19 7.5");
+      svg.append(path);
+      return svg;
+    }
+
+    async function load() {
+    try {
+      const info = await api(`/api/pay/${linkId}`);
+      if (info.balance <= 0) {
+        panel.replaceChildren(h("h1", {}, `Pay ${info.shop}`),
+          h("p", { class: "to" }, `${info.customer_name}, nothing left to pay. Thank you!`),
+          h("a", { class: "btn", href: `/customer?id=${info.customer_id}`, style: "width:100%;margin-top:12px" }, "Back to messages"));
+        return;
+      }
+      const suggested = Math.min(info.amount, info.balance);
+      const other = h("input", { type: "number", min: "1", inputmode: "numeric", placeholder: "₹", "aria-label": "Other amount" });
+      const error = h("p", { class: "form-error", hidden: true });
+      const payBtn = h("button", { class: "btn btn-primary", type: "submit", style: "width:100%" }, `Pay ₹${inr(suggested)}`);
+      const form = h("form", {},
+        h("div", { class: "amount-choice" },
+          h("label", {}, h("input", { type: "radio", name: "amt", value: "full", checked: true }), "Full amount",
+            h("span", { class: "val" }, `₹${inr(suggested)}`)),
+          h("label", {}, h("input", { type: "radio", name: "amt", value: "other" }), "Other amount", other)),
+        payBtn, error,
+        h("p", { class: "test-note" }, info.provider === "mock" ? "Test payment. No real money moves." : ""));
+      const amountNow = () => form.amt.value === "full" ? suggested : parseInt(other.value, 10);
+      form.addEventListener("input", () => {
+        if (document.activeElement === other) form.amt.value = "other";
+        const a = amountNow();
+        payBtn.textContent = a > 0 ? `Pay ₹${inr(a)}` : "Pay";
+      });
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const amount = amountNow();
+        if (!(amount > 0)) { error.hidden = false; error.textContent = "Enter an amount above ₹0."; return; }
+        if (amount > info.balance) { error.hidden = false; error.textContent = `You owe only ₹${inr(info.balance)}.`; return; }
+        payBtn.disabled = true;
+        try {
+          done(await api(`/api/pay/${linkId}/simulate`, { method: "POST", body: { amount } }), info);
+        } catch (err) {
+          payBtn.disabled = false; error.hidden = false; error.textContent = err.message;
+        }
+      });
+      panel.replaceChildren(h("h1", {}, `Pay ${info.shop}`),
+        h("p", { class: "to" }, `${info.customer_name}, you owe ₹${inr(Math.max(info.balance, 0))}`), form);
+    } catch (err) {
+      panel.replaceChildren(h("h1", {}, "Payment link not found"), h("p", { class: "to" }, err.message));
+    }
+    }
+    load();
+  </script>
+</body>
+</html>

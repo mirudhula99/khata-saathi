@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#002E6E">
+  <title>Khata Saathi</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&family=Hind+Guntur:wght@400;600&family=Hind+Madurai:wght@400;600&family=Hind+Mysuru:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="app">
+  <header class="topbar">
+    <script src="/static/backbar.js"></script>
+    <h1 id="shopName">Khata Saathi</h1>
+    <div class="topbar-actions">
+      <label class="visually-hidden" for="lang">Language</label>
+      <select id="lang" class="lang-select">
+        <option value="hi-IN">हिन्दी</option>
+        <option value="kn-IN">ಕನ್ನಡ</option>
+        <option value="ta-IN">தமிழ்</option>
+        <option value="te-IN">తెలుగు</option>
+        <option value="en-IN">English</option>
+      </select>
+      <button id="demoBtn" class="topbar-btn" type="button">Demo</button>
+    </div>
+    <p id="summary" class="summary">Loading your khata…</p>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <main class="page">
+    <section id="slot" class="slot" aria-live="polite"></section>
+
+    <section class="ledger" aria-labelledby="ledgerTitle">
+      <div class="ledger-head">
+        <h2 id="ledgerTitle">Who owes you</h2>
+        <span id="clockNote" class="clock-note" hidden></span>
+      </div>
+      <ol id="customerList" class="ruled"></ol>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <footer class="dock">
+    <p id="hint" class="hint">Tap the mic and say “Lakshmi 150 udhaar”</p>
+    <form id="typeForm" class="type-form" hidden>
+      <label class="visually-hidden" for="typeInput">Type a command</label>
+      <input id="typeInput" type="text" autocomplete="off" placeholder="Type what you would say">
+      <button type="submit" class="btn btn-primary">Send</button>
+    </form>
+    <div class="dock-row">
+      <button id="typeToggle" class="dock-side" type="button" aria-pressed="false">Type</button>
+      <button id="mic" class="mic" type="button" aria-label="Start speaking">
+        <svg class="mic-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V5.5a3.5 3.5 0 0 0-7 0V11a3.5 3.5 0 0 0 3.5 3.5Zm6-3.5a6 6 0 0 1-12 0H4.2a7.8 7.8 0 0 0 6.9 7.75V21h1.8v-2.25A7.8 7.8 0 0 0 19.8 11H18Z"/></svg>
+        <span class="mic-stop" aria-hidden="true"></span>
+      </button>
+      <span class="dock-side dock-status" id="micStatus"></span>
+    </div>
+  </footer>
+
+  <dialog id="sheet" class="sheet" aria-labelledby="sheetTitle">
+    <div class="sheet-body" id="sheetBody"></div>
+  </dialog>
+
+  <dialog id="demoSheet" class="sheet" aria-labelledby="demoTitle">
+    <div class="sheet-body">
+      <div class="sheet-head">
+        <h2 id="demoTitle">Demo tools</h2>
+        <button class="close" type="button" data-close aria-label="Close">×</button>
+      </div>
+      <p class="muted">For rehearsals and the live demo. Turn off with DEMO_MODE=false.</p>
+      <div class="stack">
+        <button id="ffBtn" class="btn btn-primary" type="button">Move time forward 3 days</button>
+        <a class="btn" href="/customer" target="_blank" rel="noopener">Open customer phone</a>
+        <button id="qrBtn" class="btn" type="button">Show “Join my khata” QR</button>
+        <button id="resetBtn" class="btn btn-quiet" type="button">Reset demo data</button>
+      </div>
+      <div id="qrBox" class="qr-box" hidden></div>
+      <dl id="healthList" class="health"></dl>
+    </div>
+  </dialog>
+
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>

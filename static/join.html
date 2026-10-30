@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#002E6E">
+  <title>Join my khata</title>
+  <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hind:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main class="simple-page">
+    <script src="/static/backbar.js"></script>
+    <section id="panel" class="panel" aria-live="polite">
+      <h1 id="title">Join my khata</h1>
+      <p class="to" id="sub">See what you owe and get gentle reminders on WhatsApp.</p>
+      <form id="form" class="fields" novalidate>
+        <div class="field">
+          <label for="name">Your name</label>
+          <input id="name" autocomplete="name" required>
+        </div>
+        <div class="field">
+          <label for="phone">WhatsApp number</label>
+          <input id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="98765 43210" required>
+        </div>
+        <div class="field">
+          <label for="language">Message language</label>
+          <select id="language">
+            <option value="hi-IN">हिन्दी</option>
+            <option value="kn-IN">ಕನ್ನಡ</option>
+            <option value="ta-IN">தமிழ்</option>
+            <option value="te-IN">తెలుగు</option>
+            <option value="en-IN">English</option>
+          </select>
+        </div>
+        <label class="check"><input id="consent" type="checkbox"> <span id="consentText">Send me my udhaar entries and payment reminders on WhatsApp. I can reply STOP anytime.</span></label>
+        <button class="btn btn-primary" type="submit">Join</button>
+        <p id="error" class="form-error" hidden></p>
+      </form>
+    </section>
+  </main>
+  <script type="module">
+    import { api, h } from "/static/common.js";
+    const merchantId = location.pathname.split("/").pop();
+    const $ = (id) => document.getElementById(id);
+    try {
+      const info = await api(`/api/join/${merchantId}`);
+      $("title").textContent = `Join ${info.shop}’s khata`;
+      $("language").value = info.language;
+    } catch (err) {
+      $("sub").textContent = err.message;
+    }
+    $("form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const error = $("error");
+      error.hidden = true;
+      try {
+        const r = await api(`/api/join/${merchantId}`, { method: "POST", body: {
+          name: $("name").value, phone: $("phone").value, language: $("language").value, consent: $("consent").checked,
+        } });
+        $("panel").replaceChildren(h("h1", {}, `You’re in, ${r.name}`),
+          h("p", { class: "to" }, "You’ll get your entries and reminders on WhatsApp. Reply STOP anytime to stop them."));
+      } catch (err) {
+        error.hidden = false;
+        error.textContent = err.message;
+      }
+    });
+  </script>
+</body>
+</html>
