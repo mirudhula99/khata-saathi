@@ -36,11 +36,9 @@ export function SettleUpPage() {
   const go = async () => {
     if (!c || !valid) return;
     setSent(doneSeq);
-    await command(method === 'cash' ? `${c.name} paid ${n} cash` : `Ask ${c.name} for ${n}`);
-    // This page already knows the customer. If the name is shared ("Which Ramesh?"), answer with this customer's id
-    // instead of asking, so the payment can never land on the other Ramesh.
-    const p = useKhata.getState().pending;
-    if (p?.state === 'awaiting_choice') await useKhata.getState().choose(cid);
+    // This page already knows the customer, so its id goes with the sentence: the server never matches by name,
+    // and a payment can't land on the other Ramesh.
+    await command(method === 'cash' ? `${c.name} paid ${n} cash` : `Ask ${c.name} for ${n}`, cid);
   };
 
   const quick = [balance, Math.round(balance / 2), 100].filter((v, i, a) => v > 0 && v <= balance && a.indexOf(v) === i);

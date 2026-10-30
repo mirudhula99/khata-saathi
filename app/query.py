@@ -135,7 +135,7 @@ def fallback_answer(db: Session, merchant: Merchant, question: str, lang: str, s
         return say(lang, "nobody", spoken)
     # The biggest balance also says how long it has waited ("Ramesh ₹800 for 40 days"), matching the pitch line.
     top = ", ".join(
-        f"{r['name']} {money(r['balance'], lang, spoken)}" + (f" for {r['days']} days" if i == 0 and r.get("days") else "")
+        f"{r['name']} {money(r['balance'], lang, spoken)}" + (say(lang, "for_days", spoken, days=r["days"]) if i == 0 and r.get("days") else "")
         for i, r in enumerate(rows[:3]))
     return say(lang, "outstanding", spoken, count=len(rows), total=sum(r["balance"] for r in rows), top=top)
 

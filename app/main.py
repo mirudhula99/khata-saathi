@@ -171,6 +171,7 @@ def service_worker():
 class CommandIn(BaseModel):
     text: str
     lang: str | None = None
+    customer_id: int | None = None  # set by screens that already show one customer
 
 
 class AmountIn(BaseModel):
@@ -197,6 +198,12 @@ class CustomerPatch(BaseModel):
     language: str | None = None
     consent: str | None = None
     reminders_paused: bool | None = None
+
+
+class NewCustomerIn(BaseModel):
+    name: str
+    phone: str | None = None
+    note: str | None = None
 
 
 class ResolveIn(BaseModel):
@@ -246,7 +253,7 @@ def api_voice(file: UploadFile = File(...), lang: str | None = Form(None), db: S
 
 @app.post("/api/command")
 def api_command(body: CommandIn, db: Session = Depends(get_db)):
-    return services.handle_command(db, body.text, body.lang)
+    return services.handle_command(db, body.text, body.lang, body.customer_id)
 
 
 @app.post("/api/actions/{pending_id}/confirm")
@@ -282,6 +289,12 @@ def api_new_customer(pending_id: int, db: Session = Depends(get_db)):
 def api_customers(db: Session = Depends(get_db)):
     state = services.state_dict(db)
     return {"customers": state["customers"], "totals": state["totals"]}
+
+
+@app.post("/api/customers")
+def api_customer_add(body: NewCustomerIn, db: Session = Depends(get_db)):
+    """Add a customer with nothing owed yet (udhaar entries create customers on their own)."""
+    return services.add_customer(db, body.name, phone=body.phone, note=body.note)
 
 
 @app.get("/api/customers/{customer_id}/ledger")

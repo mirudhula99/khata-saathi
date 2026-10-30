@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { IndianRupee, PenLine, QrCode, Smartphone } from 'lucide-react';
 import { AppShell, HeaderBand, Scroll } from '@/components/AppShell';
 import { DashboardCards } from '@/components/DashboardCards';
+import { JoinQrDialog } from '@/components/JoinQrDialog';
 import { ManualEntrySheet } from '@/components/ManualEntrySheet';
 import { MicHero } from '@/components/MicHero';
 import { IconTile, PaytmButton, PaytmCard } from '@/components/paytm';
@@ -22,6 +23,7 @@ export function SaathiPage({ focusMic = false }: { focusMic?: boolean }) {
   const { state, lang, pending, lastReply, lastTranscript, lastWarning, dismiss } = useKhata();
   const [manual, setManual] = useState(false);
   const [manualKind, setManualKind] = useState<'udhaar' | 'cash'>('udhaar');
+  const [joinQr, setJoinQr] = useState(false);
 
   // /add?customer=3 or /add?new=1 open the by-hand sheet (links from the customer screen and "Add customer").
   const manualFor = params.get('customer');
@@ -71,12 +73,13 @@ export function SaathiPage({ focusMic = false }: { focusMic?: boolean }) {
               <IconTile icon={PenLine} label="Add by hand" onClick={() => { setManualKind('udhaar'); setManual(true); }} />
               <IconTile icon={IndianRupee} label={<>Record<br />payment</>} onClick={() => { setManualKind('cash'); setManual(true); }} />
               <IconTile icon={Smartphone} label={<>Customer's<br />phone</>} href="/customer" target="_blank" />
-              <IconTile icon={QrCode} label={<>Join my<br />khata</>} href={`/join/${state?.merchant.id ?? 1}`} target="_blank" />
+              <IconTile icon={QrCode} label={<>Join my<br />khata</>} onClick={() => setJoinQr(true)} />
             </div>
           </PaytmCard>
 
           {/* Two live charts from his ledger (GET /api/stats): who owes you, and this week's given vs received. */}
           <DashboardCards />
+          <JoinQrDialog open={joinQr} onOpenChange={setJoinQr} />
         </div>
         <WhichCustomerDialog />
         <ManualEntrySheet open={manual} onOpenChange={closeManual} customerId={manualFor ? Number(manualFor) : null} startNew={manualNew} startKind={manualKind} />

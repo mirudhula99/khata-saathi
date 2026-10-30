@@ -12,7 +12,7 @@ import { StatusChip } from '@/components/StatusChip';
 import { api } from '@/lib/api';
 import { LANGS } from '@/lib/speech';
 import type { CustomerDetail, Entry } from '@/lib/types';
-import { timeAgo } from '@/lib/ui';
+import { dateTime, timeAgo } from '@/lib/ui';
 import { cn, inr } from '@/lib/utils';
 import { useKhata } from '@/store/useKhata';
 
@@ -151,7 +151,7 @@ export function CustomerDetailPage() {
               <input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" className="h-11 min-w-0 flex-1 rounded-full bg-chip px-3.5 text-right text-[14px] tabular-nums text-ink outline-none placeholder:text-ink-3 focus:ring-2 focus:ring-sky" />
               {phone !== (c.phone ?? '') && <PaytmButton type="submit" variant="ghost" size="sm" className="-mr-2 px-2">Save</PaytmButton>}
             </form>
-            {c.next_reminder_at && c.balance > 0 && <div className="px-4 pb-3 pt-1 text-[12px] text-ink-2">Next reminder {timeAgo(c.next_reminder_at) || 'scheduled'}.</div>}
+            {c.next_reminder_at && c.balance > 0 && <div className="px-4 pb-3 pt-1 text-[12px] text-ink-2">Next reminder: {dateTime(c.next_reminder_at) || 'scheduled'}.</div>}
           </PaytmCard>
         </div>
       </Scroll>

@@ -184,7 +184,8 @@ def _reply_pending(db: Session, lang: str, p: PendingAction, **kwargs) -> dict:
 
 
 # ============================================================ commands
-def handle_command(db: Session, transcript: str, lang: str | None = None) -> dict:
+def handle_command(db: Session, transcript: str, lang: str | None = None, customer_id: int | None = None) -> dict:
+    """customer_id: the screen already knows who this is about (a customer's own page), so no "Which Ramesh?"."""
     merchant = get_merchant(db)
     lang = norm_lang(lang or merchant.language)
     transcript = (transcript or "").strip()
@@ -215,10 +216,11 @@ def handle_command(db: Session, transcript: str, lang: str | None = None) -> dic
                       pending=pending)
 
     _cancel_open_pending(db, merchant.id)
-    return _start_action(db, merchant, parsed, transcript, lang)
+    return _start_action(db, merchant, parsed, transcript, lang, customer_id)
 
 
-def _start_action(db: Session, merchant: Merchant, parsed: ParsedCommand, transcript: str, lang: str) -> dict:
+def _start_action(db: Session, merchant: Merchant, parsed: ParsedCommand, transcript: str, lang: str,
+                  customer_id: int | None = None) -> dict:
     now = clock.now()
     p = PendingAction(
         merchant_id=merchant.id, kind=parsed.intent, state="awaiting_confirm", transcript=transcript,
@@ -227,7 +229,10 @@ def _start_action(db: Session, merchant: Merchant, parsed: ParsedCommand, transc
         options=[], created_at=now, expires_at=now + timedelta(minutes=settings.pending_minutes),
     )
     common = {"transcript": transcript, "parsed": parsed, "warning": parsed.warning}
-    if parsed.intent != "cash_sale":
+    known = db.get(Customer, customer_id) if customer_id else None
+    if known is not None and known.merchant_id == merchant.id and parsed.intent != "cash_sale":
+        p.customer_id = known.id
+    elif parsed.intent != "cash_sale":
         res = resolve(db, merchant.id, parsed.customer_name or "")
         if res.kind == "match":
             p.customer_id = res.customer.id
@@ -711,6 +716,25 @@ def resolve_dispute(db: Session, entry_id: int, action: str) -> dict:
         ensure_reminder(db, customer, clock.now() + timedelta(days=settings.default_due_days))
     db.commit()
     return {"ok": True, "balance": rupees(ledger.balance_paise(db, customer.id))}
+
+
+def add_customer(db: Session, name: str, *, phone: str | None = None, note: str | None = None) -> dict:
+    merchant = get_merchant(db)
+    name, phone, note = name.strip(), (phone or "").strip() or None, (note or "").strip()
+    if not name:
+        raise FlowError("Enter the customer's name.")
+    if phone:
+        digits = messaging.phone_digits(phone)
+        if len(digits) < 10:
+            raise FlowError("Enter a 10-digit mobile number.")
+        same = next((c for c in db.scalars(select(Customer).where(Customer.merchant_id == merchant.id))
+                     if messaging.phone_digits(c.phone)[-10:] == digits[-10:]), None)
+        if same:
+            raise FlowError(f"That number is already saved for {same.display_name}.")
+    customer = create_customer(db, merchant, name[:120], phone=phone)
+    customer.note = note[:120]
+    db.commit()
+    return customer_detail(db, customer.id)
 
 
 def update_customer(db: Session, customer_id: int, changes: dict) -> dict:

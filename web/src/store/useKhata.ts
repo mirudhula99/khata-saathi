@@ -21,7 +21,8 @@ interface KhataState {
 
   refresh: () => Promise<void>;
   setLang: (l: LangCode) => Promise<void>;
-  command: (text: string) => Promise<void>;
+  command: (text: string, customerId?: number) => Promise<void>;
+  addCustomer: (name: string) => Promise<number | null>;
   voice: (blob: Blob, filename: string) => Promise<void>;
   confirm: () => Promise<void>;
   reject: () => Promise<void>;
@@ -79,7 +80,15 @@ export const useKhata = create<KhataState>((set, get) => {
       try { await api.patchMerchant({ language: lang }); await get().refresh(); } catch (e) { toast.error(errMsg(e)); }
     },
 
-    command: async (text) => { const t = text.trim(); if (!t) return; await run(() => api.command(t, get().lang)); },
+    command: async (text, customerId) => { const t = text.trim(); if (!t) return; await run(() => api.command(t, get().lang, customerId)); },
+    addCustomer: async (name) => {
+      try {
+        const c = await api.addCustomer({ name });
+        toast.success('Customer added', { description: c.name });
+        await get().refresh();
+        return c.id;
+      } catch (e) { toast.error(errMsg(e)); return null; }
+    },
     voice: async (blob, filename) => run(() => api.voice(blob, filename, get().lang)),
 
     confirm: async () => { const id = pendingId(); if (id == null) return; await run(() => api.confirm(id, get().lang)); },

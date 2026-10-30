@@ -191,5 +191,32 @@ class GuardrailTests(unittest.TestCase):
         self.assertAlmostEqual(clock._load().total_seconds(), 3 * 86400)
 
 
+    # ---------------------------------------------------------------- screens that already know the customer
+    def test_customer_page_never_asks_which_ramesh(self):
+        teacher = self.customers["Ramesh|Teacher"]["id"]
+        street = self.customers["Ramesh|Gandhi Street"]["id"]
+        self.assertEqual(self.say("Ramesh paid 300 cash")["pending"]["state"], "awaiting_choice")
+        reply = self.client.post("/api/command", json={"text": "Ramesh paid 300 cash", "lang": "en-IN",
+                                                       "customer_id": street}).json()
+        self.assertEqual(reply["pending"]["state"], "awaiting_confirm")
+        self.assertEqual(reply["pending"]["customer"]["id"], street)
+        self.client.post(f"/api/actions/{reply['pending']['id']}/confirm", json={})
+        self.assertEqual(self.balance(street), 500)
+        self.assertEqual(self.balance(teacher), 0)
+
+    def test_add_customer_with_nothing_owed(self):
+        added = self.client.post("/api/customers", json={"name": "  Selvi ", "phone": "9123456780"}).json()
+        self.assertEqual((added["name"], added["balance"]), ("Selvi", 0))
+        again = self.client.post("/api/customers", json={"name": "Someone", "phone": "+91 91234 56780"})
+        self.assertEqual(again.status_code, 400)
+        self.assertEqual(self.client.post("/api/customers", json={"name": " "}).status_code, 400)
+
+    def test_answers_have_no_english_inside_other_languages(self):
+        for lang, phrase in (("ta-IN", "40 நாட்களாக"), ("hi-IN", "40 दिन से")):
+            reply = self.client.post("/api/command", json={"text": "Who owes me money?", "lang": lang}).json()
+            self.assertIn(phrase, reply["reply_text"])
+            self.assertNotIn("days", reply["reply_text"])
+
+
 if __name__ == "__main__":
     unittest.main()

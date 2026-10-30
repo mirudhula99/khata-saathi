@@ -13,6 +13,14 @@ export function timeAgo(iso: string) {
   return then.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
+/** "3 Nov, 9:00 am" for a time ahead (timeAgo only reads the past). An absolute date, because on the demo clock
+ *  the scheduler's "today" can be days ahead of the phone's. */
+export function dateTime(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}, ${d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}`;
+}
+
 /** Greeting in the merchant's language (design-system §4 Header band). */
 export function greeting(lang: string): string {
   const g: Record<string, string> = { 'ta-IN': 'Vanakkam', 'hi-IN': 'Namaste', 'kn-IN': 'Namaskara', 'te-IN': 'Namaskaram', 'en-IN': 'Hello' };

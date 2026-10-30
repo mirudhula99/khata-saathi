@@ -27,7 +27,8 @@ export const api = {
   patchMerchant: (body: { language?: string; shop_name?: string; phone?: string }) => request<{ ok: true }>('/api/merchant', { method: 'PATCH', body }),
 
   // Understand: text or a recording → read-back (pending) or an answer.
-  command: (text: string, lang: string) => request<CommandResponse>('/api/command', { body: { text, lang } }),
+  // customerId: the screen already shows one customer, so the server skips name matching (no "Which Ramesh?").
+  command: (text: string, lang: string, customerId?: number) => request<CommandResponse>('/api/command', { body: { text, lang, customer_id: customerId ?? null } }),
   voice: (blob: Blob, filename: string, lang: string) => {
     const form = new FormData();
     form.append('file', blob, filename);
@@ -44,6 +45,7 @@ export const api = {
 
   // Record
   customer: (id: number) => request<CustomerDetail>(`/api/customers/${id}`),
+  addCustomer: (body: { name: string; phone?: string; note?: string }) => request<CustomerDetail>('/api/customers', { body }),
   patchCustomer: (id: number, body: CustomerPatch) => request<CustomerDetail>(`/api/customers/${id}`, { method: 'PATCH', body }),
   resolveDispute: (entryId: number, action: 'keep' | 'remove') => request<{ ok: true; balance: number }>(`/api/entries/${entryId}/resolve`, { body: { action } }),
   customerView: (id: number) => request<CustomerView>(`/api/customer-view/${id}`),

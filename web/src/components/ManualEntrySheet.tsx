@@ -16,7 +16,7 @@ const KINDS: { value: Kind; label: string }[] = [{ value: 'udhaar', label: 'Udha
  * same understand → read-back → yes path as voice. Nothing is saved from this sheet directly.
  */
 export function ManualEntrySheet({ open, onOpenChange, customerId, startNew, startKind }: { open: boolean; onOpenChange: (o: boolean) => void; customerId?: number | null; startNew?: boolean; startKind?: Kind }) {
-  const { state, command, loading } = useKhata();
+  const { state, command, addCustomer, loading } = useKhata();
   const customers = useMemo(() => state?.customers ?? [], [state]);
   const [query, setQuery] = useState('');
   const [picking, setPicking] = useState(false);
@@ -38,6 +38,8 @@ export function ManualEntrySheet({ open, onOpenChange, customerId, startNew, sta
   const n = Number(amount) || 0;
   const who = customer?.name || newName;
   const valid = Boolean(who) && n > 0 && (kind === 'udhaar' || Boolean(customer));
+  // A new name with no amount: just add the customer (they owe nothing yet).
+  const addOnly = !customer && Boolean(newName) && kind === 'udhaar' && !amount.trim();
 
   const pick = (c: CustomerRowData) => { setCustomer(c); setNewName(''); setQuery(''); setPicking(false); };
 
@@ -47,7 +49,11 @@ export function ManualEntrySheet({ open, onOpenChange, customerId, startNew, sta
       : kind === 'cash' ? `${who} paid ${n} cash`
       : `Ask ${who} for ${n}`;
     onOpenChange(false);
-    await command(sentence);
+    await command(sentence, customer?.id);
+  };
+
+  const saveCustomerOnly = async () => {
+    if (await addCustomer(newName) != null) onOpenChange(false);
   };
 
   return (
@@ -119,12 +125,16 @@ export function ManualEntrySheet({ open, onOpenChange, customerId, startNew, sta
                 className="font-display h-full min-w-0 flex-1 bg-transparent text-[32px] font-extrabold tabular-nums text-ink outline-none placeholder:text-ink-3" />
             </label>
 
-            <PaytmAlert tone="info">Saathi reads it back on the home screen. Nothing is saved until you tap Save.</PaytmAlert>
+            <PaytmAlert tone="info">{addOnly
+              ? `Leave the amount empty to add ${newName} with nothing owed.`
+              : 'Saathi reads it back on the home screen. Nothing is saved until you tap Save.'}</PaytmAlert>
           </div>
         </div>
 
         <div className="shrink-0 px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-2">
-          <PaytmButton full disabled={!valid || loading} onClick={() => void save()}>Next</PaytmButton>
+          {addOnly
+            ? <PaytmButton full disabled={loading} onClick={() => void saveCustomerOnly()}>Add customer</PaytmButton>
+            : <PaytmButton full disabled={!valid || loading} onClick={() => void save()}>Next</PaytmButton>}
         </div>
       </SheetContent>
     </Sheet>

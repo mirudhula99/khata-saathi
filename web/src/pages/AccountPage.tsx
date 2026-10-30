@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Bot, CalendarPlus, ExternalLink, Languages, Mic, MessageCircle, Monitor, PlayCircle, QrCode, RotateCcw, Smartphone, Users, Volume2, Wallet, type LucideIcon } from 'lucide-react';
 import { AppShell, HeaderBand, Scroll, demoDate } from '@/components/AppShell';
+import { JoinQrDialog } from '@/components/JoinQrDialog';
 import { LanguageSelect } from '@/components/LanguageSelect';
 import { IconTile, PaytmAlert, PaytmBadge, PaytmButton, PaytmCard, PaytmChip, PaytmRow } from '@/components/paytm';
 import { cn } from '@/lib/utils';
@@ -19,6 +20,7 @@ function IconCircle({ icon: Icon, muted, className }: { icon: LucideIcon; muted?
 export function AccountPage() {
   const { state, reset, fastForward, runReminders } = useKhata();
   const [confirmReset, setConfirmReset] = useState(false);
+  const [joinQr, setJoinQr] = useState(false);
   const name = state?.merchant.shop_name ?? 'Khata Saathi';
   const h = state?.health;
 
@@ -76,7 +78,8 @@ export function AccountPage() {
 
           <PaytmCard title="Demo" subtitle="Pages for the demo and the original UI" padded={false}>
             <PaytmRow avatar={<IconCircle icon={Smartphone} />} title="Customer's phone" sub="WhatsApp simulator" href="/customer" target="_blank" right={<ExternalLink className="size-4 text-ink-3" strokeWidth={2} aria-hidden="true" />} />
-            <PaytmRow avatar={<IconCircle icon={QrCode} />} title="Join my khata" sub="QR page customers scan" href={`/join/${state?.merchant.id ?? 1}`} target="_blank" right={<ExternalLink className="size-4 text-ink-3" strokeWidth={2} aria-hidden="true" />} />
+            <PaytmRow avatar={<IconCircle icon={QrCode} />} title="Join my khata" sub="QR code customers scan" onClick={() => setJoinQr(true)} chevron />
+            <JoinQrDialog open={joinQr} onOpenChange={setJoinQr} />
             <PaytmRow avatar={<IconCircle icon={Monitor} />} title="Original one-screen UI" sub="Legacy page" href="/legacy" chevron />
             {h?.demo_mode && (
               <div className="px-4 pb-4 pt-2">

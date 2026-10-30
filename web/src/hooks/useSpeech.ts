@@ -49,8 +49,23 @@ export function useSpeech(lang: string, onFinal: (text: string) => void) {
     rec.continuous = false;
     rec.maxAlternatives = 1;
     let finalText = '';
-    rec.onstart = () => { setListening(true); setInterim('Listening…'); if ('speechSynthesis' in window) speechSynthesis.cancel(); };
+    // Some browsers (or no network) fail silently: no start, no result, no end. Without this the mic would sit on
+    // "Tap and speak" forever. Each event re-arms it; when it fires, give up and point to the text box.
+    let watchdog = 0;
+    let timedOut = false;
+    const arm = (ms: number) => {
+      window.clearTimeout(watchdog);
+      watchdog = window.setTimeout(() => {
+        timedOut = true;
+        try { rec.abort(); } catch { /* already stopped */ }
+        if (recRef.current === rec) recRef.current = null;
+        setListening(false);
+        setInterim('The mic is not responding. Type instead.');
+      }, ms);
+    };
+    rec.onstart = () => { arm(10000); setListening(true); setInterim('Listening…'); if ('speechSynthesis' in window) speechSynthesis.cancel(); };
     rec.onresult = (ev) => {
+      arm(8000);
       let partial = '';
       for (let i = ev.resultIndex; i < ev.results.length; i++) {
         const r = ev.results[i];
@@ -58,14 +73,16 @@ export function useSpeech(lang: string, onFinal: (text: string) => void) {
       }
       setInterim(finalText || partial || '…');
     };
-    rec.onerror = (ev) => setInterim(`Mic error: ${ev.error}. Type instead.`);
+    rec.onerror = (ev) => { window.clearTimeout(watchdog); setInterim(`Mic error: ${ev.error}. Type instead.`); };
     rec.onend = () => {
+      window.clearTimeout(watchdog);
+      if (timedOut) return;
       setListening(false);
       if (cancelled.current) { cancelled.current = false; setInterim(''); return; }
       if (finalText.trim()) { setInterim(''); onFinalRef.current(finalText.trim()); }
       else setInterim((s) => (s.startsWith('Mic error') ? s : 'Did not catch that. Tap again or type.'));
     };
-    try { rec.start(); } catch { setInterim('Could not start the mic. Type instead.'); }
+    try { rec.start(); arm(6000); } catch { setInterim('Could not start the mic. Type instead.'); }
   }, [lang, listening]);
 
   return { supported, listening, interim, start, stop, cancel, setInterim };
