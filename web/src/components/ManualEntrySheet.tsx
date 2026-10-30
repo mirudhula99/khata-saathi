@@ -7,13 +7,14 @@ import type { CustomerRowData } from '@/lib/types';
 import { inr } from '@/lib/utils';
 import { useKhata } from '@/store/useKhata';
 
-type Kind = 'udhaar' | 'cash' | 'link';
-const KINDS: { value: Kind; label: string }[] = [{ value: 'udhaar', label: 'Udhaar' }, { value: 'cash', label: 'Cash received' }, { value: 'link', label: 'Payment link' }];
+type Kind = 'udhaar' | 'cash';
 
 /**
  * "Add by hand": the typed fallback for the voice flow, as a Paytm bottom sheet (grabber, 18/800 blue title, full-width pill).
  * It composes the sentence the merchant would have said and sends it through /api/command, so it goes through the
  * same understand → read-back → yes path as voice. Nothing is saved from this sheet directly.
+ * One job per opening, set by the button that opened it: "Add by hand" enters udhaar only, "Record payment" a
+ * received payment only (for customers who owe something). Payment links live on the customer's Record payment page.
  */
 export function ManualEntrySheet({ open, onOpenChange, customerId, startNew, startKind }: { open: boolean; onOpenChange: (o: boolean) => void; customerId?: number | null; startNew?: boolean; startKind?: Kind }) {
   const { state, command, addCustomer, loading } = useKhata();
@@ -24,30 +25,32 @@ export function ManualEntrySheet({ open, onOpenChange, customerId, startNew, sta
   const [newName, setNewName] = useState('');
   const [items, setItems] = useState('');
   const [amount, setAmount] = useState('');
-  const [kind, setKind] = useState<Kind>('udhaar');
+  const kind: Kind = startKind ?? 'udhaar';
 
   useEffect(() => {
     if (!open) return;
-    setQuery(''); setItems(''); setAmount(''); setKind(startKind ?? 'udhaar'); setNewName('');
+    setQuery(''); setItems(''); setAmount(''); setNewName('');
     const c = customerId != null ? customers.find((x) => x.id === customerId) ?? null : null;
     setCustomer(c);
     setPicking(Boolean(startNew) || !c);
-  }, [open, customerId, startNew, startKind, customers]);
+  }, [open, customerId, startNew, customers]);
 
-  const filtered = useMemo(() => customers.filter((c) => !query || c.name.toLowerCase().includes(query.toLowerCase())), [customers, query]);
+  const paymentOnly = kind === 'cash';
+  const filtered = useMemo(() => customers.filter((c) => (!paymentOnly || c.balance > 0) && (!query || c.name.toLowerCase().includes(query.toLowerCase()))), [customers, query, paymentOnly]);
   const n = Number(amount) || 0;
   const who = customer?.name || newName;
   const valid = Boolean(who) && n > 0 && (kind === 'udhaar' || Boolean(customer));
   // A new name with no amount: just add the customer (they owe nothing yet).
   const addOnly = !customer && Boolean(newName) && kind === 'udhaar' && !amount.trim();
 
-  const pick = (c: CustomerRowData) => { setCustomer(c); setNewName(''); setQuery(''); setPicking(false); };
+  const pick = (c: CustomerRowData) => {
+    setCustomer(c); setNewName(''); setQuery(''); setPicking(false);
+    if (paymentOnly && c.balance > 0) setAmount(String(c.balance));  // most pay it all; easy to change
+  };
 
   const save = async () => {
     if (!valid) return;
-    const sentence = kind === 'udhaar' ? `${who} ${n} udhaar${items.trim() ? ' ' + items.trim() : ''}`
-      : kind === 'cash' ? `${who} paid ${n} cash`
-      : `Ask ${who} for ${n}`;
+    const sentence = kind === 'udhaar' ? `${who} ${n} udhaar${items.trim() ? ' ' + items.trim() : ''}` : `${who} paid ${n} cash`;
     onOpenChange(false);
     await command(sentence, customer?.id);
   };
@@ -62,10 +65,10 @@ export function ManualEntrySheet({ open, onOpenChange, customerId, startNew, sta
         <Grabber />
         <div className="flex h-12 shrink-0 items-center justify-between px-3">
           <TopBarIcon icon={X} label="Close" onClick={() => onOpenChange(false)} />
-          <SheetTitle>{kind === 'cash' ? 'Record payment' : kind === 'link' ? 'Send payment link' : 'Add udhaar by hand'}</SheetTitle>
+          <SheetTitle>{kind === 'cash' ? 'Record payment' : 'Add udhaar by hand'}</SheetTitle>
           <span className="size-10" aria-hidden="true" />
         </div>
-        <SheetDescription className="sr-only">Record an udhaar entry, a cash payment or a payment link without voice. Saathi reads it back before saving.</SheetDescription>
+        <SheetDescription className="sr-only">{kind === 'cash' ? 'Record a payment received at the counter' : 'Record an udhaar entry'} without voice. Saathi reads it back before saving.</SheetDescription>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="flex flex-col gap-3 px-4 pb-4 pt-1">
@@ -81,36 +84,30 @@ export function ManualEntrySheet({ open, onOpenChange, customerId, startNew, sta
               ) : (
                 <Input id="who" autoFocus={picking} value={query} onFocus={() => setPicking(true)} onChange={(e) => { setQuery(e.target.value); setPicking(true); }} placeholder="Name" autoComplete="off" />
               )}
-              {picking && (filtered.length > 0 || query) && (
+              {picking && paymentOnly && filtered.length === 0 && (
+                <p className="text-[13px] text-ink-2">{query ? `No one called "${query}" owes you money.` : 'Nobody owes you money right now.'}</p>
+              )}
+              {picking && (filtered.length > 0 || (query && !paymentOnly)) && (
                 <PaytmCard padded={false}>
                   {filtered.map((c) => (
                     <PaytmRow key={c.id} avatar={c.name} title={c.name} sub={c.note || undefined} onClick={() => pick(c)}
                       right={<span className={c.balance > 0 ? 'text-owed' : 'text-paid'}>{c.balance > 0 ? inr(c.balance) : 'Paid up'}</span>} />
                   ))}
-                  {query && !filtered.some((c) => c.name.toLowerCase() === query.toLowerCase()) && (
+                  {query && !paymentOnly && !filtered.some((c) => c.name.toLowerCase() === query.toLowerCase()) && (
                     <PaytmRow
                       avatar={<span className="grid size-10 shrink-0 place-items-center rounded-full bg-sky-tint text-sky-ink" aria-hidden="true"><Check className="size-5" strokeWidth={1.8} /></span>}
                       title={<span className="text-sky-ink">Add "{query.trim()}" as a new customer</span>}
-                      onClick={() => { setCustomer(null); setNewName(query.trim()); setQuery(''); setPicking(false); setKind('udhaar'); }}
+                      onClick={() => { setCustomer(null); setNewName(query.trim()); setQuery(''); setPicking(false); }}
                     />
                   )}
                 </PaytmCard>
               )}
             </div>
 
-            {/* Kind: segmented chips. */}
-            <div className="flex flex-col gap-1.5">
-              <div id="kind" role="group" aria-label="Entry kind" className="flex flex-wrap gap-2">
-                {KINDS.map((o) => (
-                  <PaytmChip key={o.value} selected={kind === o.value} onClick={() => setKind(o.value)} className="h-9 px-3.5 text-[13px]">{o.label}</PaytmChip>
-                ))}
-              </div>
-              <p className="text-[12px] leading-snug text-ink-2">
-                {kind === 'udhaar' && 'Customer takes goods now, pays later. They confirm or flag it on WhatsApp.'}
-                {kind === 'cash' && 'Cash paid at the counter. Recorded as a repayment after you say yes.'}
-                {kind === 'link' && 'Sends a payment link on WhatsApp. Needs the customer\'s consent.'}
-              </p>
-            </div>
+            <p className="text-[12px] leading-snug text-ink-2">
+              {kind === 'udhaar' ? 'Customer takes goods now, pays later. They confirm or flag it on WhatsApp.'
+                : 'Cash paid at the counter. Recorded as a repayment after you say yes.'}
+            </p>
 
             {kind === 'udhaar' && (
               <label className="flex h-12 items-center gap-3 rounded-xl border border-line bg-card px-4 focus-within:border-sky focus-within:ring-[3px] focus-within:ring-sky/25">

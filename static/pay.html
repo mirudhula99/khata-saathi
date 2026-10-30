@@ -53,7 +53,7 @@
       const suggested = Math.min(info.amount, info.balance);
       const other = h("input", { type: "number", min: "1", inputmode: "numeric", placeholder: "₹", "aria-label": "Other amount" });
       const error = h("p", { class: "form-error", hidden: true });
-      const payBtn = h("button", { class: "btn btn-primary", type: "submit", style: "width:100%" }, `Pay ₹${inr(suggested)}`);
+      const payBtn = h("button", { class: "btn btn-primary attention", type: "submit", style: "width:100%" }, `Pay ₹${inr(suggested)}`);
       const form = h("form", {},
         h("div", { class: "amount-choice" },
           h("label", {}, h("input", { type: "radio", name: "amt", value: "full", checked: true }), "Full amount",

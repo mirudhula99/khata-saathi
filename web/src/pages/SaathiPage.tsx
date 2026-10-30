@@ -28,7 +28,8 @@ export function SaathiPage({ focusMic = false }: { focusMic?: boolean }) {
   // /add?customer=3 or /add?new=1 open the by-hand sheet (links from the customer screen and "Add customer").
   const manualFor = params.get('customer');
   const manualNew = params.get('new') === '1';
-  useEffect(() => { if (manualFor || manualNew) setManual(true); }, [manualFor, manualNew]);
+  // Links from a customer's page or "Add customer" are udhaar entries, even if Record payment was opened before.
+  useEffect(() => { if (manualFor || manualNew) { setManualKind('udhaar'); setManual(true); } }, [manualFor, manualNew]);
   const closeManual = (o: boolean) => { setManual(o); if (!o && (manualFor || manualNew)) setParams({}, { replace: true }); };
 
   const awaiting = pending?.state === 'awaiting_confirm';

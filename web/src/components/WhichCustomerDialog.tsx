@@ -21,7 +21,7 @@ export function WhichCustomerDialog() {
             {pending.amount ? `${inr(pending.amount)} · ` : ''}{pending.options.length} match. Saathi never guesses on money.
           </DialogDescription>
         </DialogHeader>
-        <div className="border-t border-line">
+        <div className="ks-stagger border-t border-line">
           {pending.options.map((c) => (
             <PaytmRow key={c.id} avatar={c.name} title={c.name} sub={c.note || c.phone || undefined} disabled={loading} onClick={() => void choose(c.id)}
               right={<span className={c.balance > 0 ? 'text-owed' : 'text-paid'}>{c.balance > 0 ? `owes ${inr(c.balance)}` : 'no dues'}</span>} />

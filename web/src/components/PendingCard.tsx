@@ -3,7 +3,7 @@ import { Check, PenLine, X } from 'lucide-react';
 import { PaytmButton } from '@/components/paytm';
 import { SaathiCard } from '@/components/SaathiCard';
 import { KIND_LABEL } from '@/lib/ui';
-import { inr } from '@/lib/utils';
+import { cn, inr } from '@/lib/utils';
 import { useKhata } from '@/store/useKhata';
 
 /**
@@ -44,7 +44,7 @@ export function PendingCard() {
         </form>
       ) : (
         <>
-          <PaytmButton variant="primary" icon={Check} disabled={loading} onClick={() => void confirm()}>{saveLabel}</PaytmButton>
+          <PaytmButton variant="primary" icon={Check} disabled={loading} onClick={() => void confirm()} className={cn(!loading && 'ks-attention')}>{saveLabel}</PaytmButton>
           {pending.kind !== 'request_payment' && <PaytmButton variant="outline" icon={PenLine} disabled={loading} onClick={() => setEditing(true)}>Change amount</PaytmButton>}
           <PaytmButton variant="ghost" icon={X} disabled={loading} onClick={() => void reject()} className="px-3">Cancel</PaytmButton>
         </>

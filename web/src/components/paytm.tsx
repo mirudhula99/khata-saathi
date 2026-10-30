@@ -162,7 +162,7 @@ const BTN_VARIANT: Record<ButtonVariant, string> = {
 /** Class string for a pill button, for when the element must be a Link or label. */
 export function paytmButtonClass(variant: ButtonVariant = 'primary', size: 'md' | 'sm' = 'md', full = false, className?: string) {
   return cn(
-    'inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full font-bold transition-transform active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50',
+    'inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full font-bold transition-transform duration-150 ease-out active:scale-[0.96] disabled:pointer-events-none disabled:opacity-50',
     size === 'sm' ? 'h-9 px-3.5 text-[13px]' : 'h-11 px-5 text-[15px]',
     full && 'w-full',
     BTN_VARIANT[variant],
@@ -200,7 +200,7 @@ export function paytmChipClass(selected = false, className?: string) {
 /** Grey pill chip (like the Paytm UPI ID chip). Renders a button when `onClick` is given, a span otherwise. */
 export function PaytmChip({ selected = false, icon, children, onClick, disabled, className, id, 'aria-label': ariaLabel }: { selected?: boolean; icon?: Icon; children: ReactNode; onClick?: () => void; disabled?: boolean; className?: string; id?: string; 'aria-label'?: string }) {
   const inner = <>{renderIcon(icon, 'size-3.5')}{children}</>;
-  if (onClick) return <button type="button" id={id} aria-label={ariaLabel} aria-pressed={selected} onClick={onClick} disabled={disabled} className={paytmChipClass(selected, cn('active:scale-[0.98] disabled:opacity-50', className))}>{inner}</button>;
+  if (onClick) return <button type="button" id={id} aria-label={ariaLabel} aria-pressed={selected} onClick={onClick} disabled={disabled} className={paytmChipClass(selected, cn('transition-transform duration-150 ease-out active:scale-[0.96] disabled:opacity-50', className))}>{inner}</button>;
   return <span id={id} aria-label={ariaLabel} className={paytmChipClass(selected, className)}>{inner}</span>;
 }
 

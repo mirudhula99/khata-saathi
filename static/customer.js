@@ -47,6 +47,10 @@ function render() {
     return;
   }
   const spent = answeredButtons();
+  // Only the newest message asking for a tap glows: its Correct / Wrong amount chips (until answered) and the
+  // newest Pay now link (while something is still owed). Older messages stay calm.
+  const lastAsk = view.messages.findLast((m) => m.direction === "out" && m.buttons?.length)?.id;
+  const lastPay = view.customer.balance > 0 ? view.messages.findLast((m) => m.link_url)?.id : null;
   chat.replaceChildren(...view.messages.map((m) => {
     const time = new Date(m.created_at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
     const body = m.link_url ? m.body.replace(m.link_url, "").trim() : m.body;
@@ -55,9 +59,9 @@ function render() {
     const done = Boolean(m.buttons?.length && answered && m.buttons.some((b) => answered.has(b.title)));
     return h("div", { class: `bubble ${m.direction}` },
       body,
-      m.link_url ? h("a", { class: "btn btn-paid pay", href: m.link_url }, "Pay now") : null,
+      m.link_url ? h("a", { class: `btn btn-paid pay${m.id === lastPay ? " attention" : ""}`, href: m.link_url }, "Pay now") : null,
       m.buttons?.length ? h("div", { class: "chips" }, ...m.buttons.map((b) =>
-        h("button", { class: "chip", type: "button", disabled: done,
+        h("button", { class: `chip${m.id === lastAsk && !done ? " attention" : ""}`, type: "button", disabled: done,
           onclick: () => reply({ button_id: b.id, text: b.title }) }, b.title))) : null,
       h("time", {}, m.status === "failed" ? `${time}, not delivered` : time));
   }));

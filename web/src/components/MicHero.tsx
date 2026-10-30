@@ -19,7 +19,7 @@ import { useKhata } from '@/store/useKhata';
  * Web Speech API → /api/command. Both end in the same read-back card. Typed input and rows are the safety net.
  */
 export function MicHero({ autoFocus = false, correctionHint = false, after }: { autoFocus?: boolean; correctionHint?: boolean; after?: ReactNode }) {
-  const { lang, command, voice, loading, state } = useKhata();
+  const { lang, command, voice, loading, state, pending } = useKhata();
   const health = state?.health;
   const serverVoice = Boolean(health?.voice && health?.ffmpeg);
   const [typed, setTyped] = useState('');
@@ -60,6 +60,8 @@ export function MicHero({ autoFocus = false, correctionHint = false, after }: { 
 
           <div className="relative mt-2 grid place-items-center">
             {listening && <span aria-hidden="true" className="ks-ring absolute size-40 rounded-full bg-sky/40" />}
+            {/* Idle: a slow ring invites the first tap. Off while an entry waits, so only Save glows. */}
+            {!listening && !loading && !pending && supported && <span aria-hidden="true" className="ks-ring-idle absolute size-40 rounded-full bg-sky/30" />}
             <button ref={micRef} type="button" id="mic" aria-label={listening ? 'Stop and send' : 'Tap to speak'} aria-pressed={listening} onClick={tap} disabled={loading}
               style={{ boxShadow: '0 16px 40px rgba(0, 186, 242, 0.55), 0 0 0 10px rgba(0, 186, 242, 0.12)' }}
               className={cn('ks-mic relative grid size-40 place-items-center rounded-full bg-sky text-white transition-transform active:scale-95 focus-visible:outline-4 focus-visible:outline-sky/40', !supported && 'opacity-70', listening && 'bg-blue')}>
@@ -79,7 +81,7 @@ export function MicHero({ autoFocus = false, correctionHint = false, after }: { 
               placeholder={correctionHint ? 'Correct it: "No, 150"' : 'or type it'}
               className="h-full min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-3" />
             {/* 44px send target: the sky circle fills the pill's right end (spec "sky send button"; a11y tap target >= 44). */}
-            <button type="submit" aria-label="Send" disabled={loading} className="grid size-11 shrink-0 place-items-center rounded-full bg-sky text-white active:scale-[0.98] disabled:opacity-50"><Send className="size-[18px]" strokeWidth={2} /></button>
+            <button type="submit" aria-label="Send" disabled={loading} className="grid size-11 shrink-0 place-items-center rounded-full bg-sky text-white transition-transform duration-150 ease-out active:scale-[0.92] disabled:opacity-50"><Send className="size-[18px]" strokeWidth={2} /></button>
           </form>
         </div>
       </PaytmCard>
