@@ -307,13 +307,18 @@ def validate(cmd: ParsedCommand, transcript: str) -> ParsedCommand:
     if cmd.amount is not None:
         if not 1 <= cmd.amount <= settings.max_amount_rupees:
             return _unknown(cmd, "amount_out_of_range")
-        heard = all_numbers(transcript)
-        if heard and cmd.amount not in heard:
-            money = money_numbers(transcript)
+        # Compare with money numbers, not every number: in "2 kg rice 150" an amount of 2 is a quantity.
+        money = money_numbers(transcript)
+        if money and cmd.amount not in money:
             if len(money) == 1 and 1 <= money[0] <= settings.max_amount_rupees:
                 cmd = cmd.model_copy(update={"amount": money[0], "warning": "amount_from_transcript"})
             else:
                 return _unknown(cmd, "amount_unclear")
+        elif not money and all_numbers(transcript):  # only quantities were said ("2 kg rice"), no price
+            return _unknown(cmd, "amount_unclear")
+        elif not money and cmd.source == "llm":
+            # No digits at all ("nooru rupees"): only the LLM read the amount, so the app asks to check it.
+            cmd = cmd.model_copy(update={"warning": cmd.warning or "amount_from_transcript"})
     if cmd.intent in ("add_credit", "record_repayment", "request_payment") and not cmd.customer_name:
         return _unknown(cmd, "name_missing")
     return cmd

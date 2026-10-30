@@ -98,9 +98,10 @@ def _send_whatsapp(phone: str, body: str, buttons: list) -> str:
 
 
 def verify_whatsapp_signature(raw_body: bytes, signature_header: str | None) -> bool:
-    """Checks X-Hub-Signature-256 when WHATSAPP_APP_SECRET is set."""
+    """Checks X-Hub-Signature-256. Without WHATSAPP_APP_SECRET nothing can be checked, so everything is rejected:
+    anyone could otherwise post fake STOPs or disputes for your customers."""
     if not settings.whatsapp_app_secret:
-        return True
+        return False
     expected = "sha256=" + hmac.new(settings.whatsapp_app_secret.encode(), raw_body, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature_header or "")
 

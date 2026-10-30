@@ -1,14 +1,17 @@
 """Khata Saathi API and pages. Run: uvicorn app.main:app --reload --port 8000"""
 import asyncio
+import hmac
 import io
 import json
 import logging
 from contextlib import asynccontextmanager
+from urllib.parse import urlencode
 
 import qrcode
 import qrcode.image.svg
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse
+from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse,
+                               Response, StreamingResponse)
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -30,6 +33,7 @@ async def lifespan(_app: FastAPI):
     init_db()
     with SessionLocal() as db:
         if db.scalars(select(Merchant)).first() is None:
+            clock.reset()  # a fresh database starts at today, even if an old demo moved the clock
             seed.seed(db)
             log.info("Loaded demo data.")
     bus.bind_loop(asyncio.get_running_loop())
@@ -44,12 +48,59 @@ async def lifespan(_app: FastAPI):
     log.info("Voice: %s | LLM: %s | Messaging: %s | Payments: %s | Public URL: %s",
              settings.voice_enabled, settings.llm_enabled, settings.messaging_channel,
              settings.payment_provider, settings.public_base_url)
+    log.info("Other devices: open %s/?key=%s once (this computer needs no key).%s", settings.public_base_url,
+             settings.merchant_key,
+             " This key changes on every restart; set MERCHANT_KEY in .env to keep it."
+             if settings.merchant_key_generated else "")
+    if settings.messaging_channel == "whatsapp" and not settings.whatsapp_app_secret:
+        log.warning("WHATSAPP_APP_SECRET is empty, so incoming WhatsApp messages will be rejected.")
     yield
     if scheduler:
         scheduler.shutdown(wait=False)
 
 
 app = FastAPI(title="Khata Saathi", lifespan=lifespan)
+
+# ------------------------------------------------------------------ access
+# Open to anyone: what customers and outside services use. The link id or webhook signature is the check.
+PUBLIC_PREFIXES = ("/pay/", "/api/pay/", "/join/", "/api/join/", "/webhooks/", "/static/", "/audio/",
+                   "/manifest.webmanifest", "/sw.js")
+KEY_COOKIE = "khata_key"
+LOCAL_HOSTS = ("127.0.0.1", "::1", "localhost")
+# Headers a tunnel or proxy adds. cloudflared connects from 127.0.0.1, so these tell it apart from this computer.
+PROXY_HEADERS = ("cf-connecting-ip", "x-forwarded-for", "x-real-ip", "forwarded")
+LOCKED_PAGE = """<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Khata Saathi</title><body style="font-family:system-ui;max-width:28rem;margin:4rem auto;padding:0 1rem">
+<h1>Khata Saathi is locked</h1><p>Open the app link that ends in <code>?key=…</code> once on this phone.
+The server prints it when it starts.</p></body>"""
+
+
+def _is_this_computer(request: Request) -> bool:
+    host = request.client.host if request.client else ""
+    return host in LOCAL_HOSTS and not any(h in request.headers for h in PROXY_HEADERS)
+
+
+@app.middleware("http")
+async def merchant_access(request: Request, call_next):
+    path = request.url.path
+    if path.startswith(PUBLIC_PREFIXES) or _is_this_computer(request):
+        return await call_next(request)
+    key = settings.merchant_key
+    given = request.query_params.get("key")
+    if given is not None and hmac.compare_digest(given, key):
+        # Remember this device, then drop the key from the address bar (and from browser history).
+        rest = urlencode([(k, v) for k, v in request.query_params.multi_items() if k != "key"])
+        response = RedirectResponse(path + (f"?{rest}" if rest else ""), status_code=303)
+        https = request.headers.get("x-forwarded-proto", request.url.scheme) == "https"
+        response.set_cookie(KEY_COOKIE, key, max_age=365 * 86400, httponly=True, samesite="lax", secure=https)
+        return response
+    if hmac.compare_digest(request.cookies.get(KEY_COOKIE, ""), key):
+        return await call_next(request)
+    if path.startswith("/api/") or request.method != "GET":
+        return JSONResponse(status_code=401, content={"detail": "Locked. Open the app link with ?key= on this device."})
+    return HTMLResponse(LOCKED_PAGE, status_code=401)
+
+
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.mount("/audio", StaticFiles(directory=TTS_DIR), name="audio")
 
@@ -341,6 +392,8 @@ def api_pay_simulate(link_id: str, body: SimulateIn, db: Session = Depends(get_d
     link = db.get(PaymentLink, link_id)
     if link is None:
         raise HTTPException(404, "This payment link doesn't exist.")
+    if link.status == "paid":
+        raise HTTPException(400, "This link has already been paid. Use the newest link from the shop.")
     balance = ledger.rupees(ledger.balance_paise(db, link.customer_id))
     if balance <= 0:
         raise HTTPException(400, "Nothing left to pay.")

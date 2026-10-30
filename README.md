@@ -68,9 +68,12 @@ cloudflared tunnel --url http://localhost:8000
 
 1. Copy the `https://….trycloudflare.com` address it prints.
 2. Put it in `.env` as `PUBLIC_BASE_URL=` and restart the server (payment links and the Join QR use it).
-3. Open that address on the phone. In the browser menu, choose **Add to Home Screen** so it opens like an app.
+3. Open that address on the phone **with the key**: `https://….trycloudflare.com/?key=…`. The server prints this link when it starts. The phone remembers it, so you only do this once (per key). Do the same on the phone used as Lakshmi's (`/customer?id=1&key=…`).
+4. In the browser menu, choose **Add to Home Screen** so it opens like an app.
 
-The tunnel address changes each time you restart cloudflared, so repeat step 2 when it does.
+Without the key, the app shows "locked": a tunnel address is public, and anyone holding it could otherwise read the khata or reset it. The computer running the server never needs the key. Set `MERCHANT_KEY` in `.env` to keep the same key across restarts; otherwise a new one is made each start. Payment links (`/pay/…`) and the Join page stay open, because customers use them.
+
+The tunnel address changes each time you restart cloudflared, so repeat steps 2 and 3 when it does.
 
 ## Demo script (about 4 minutes)
 
@@ -110,7 +113,7 @@ Trust rules built in: nothing is saved without the merchant’s yes; if the LLM�
 ## Switching on WhatsApp (optional)
 
 1. In Meta for Developers, create an app with WhatsApp and note the **test number’s Phone number ID** and a **token**. Add your teammates’ phones as test recipients.
-2. In `.env`: `MESSAGING_CHANNEL=whatsapp`, `WHATSAPP_TOKEN=…`, `WHATSAPP_PHONE_NUMBER_ID=…`.
+2. In `.env`: `MESSAGING_CHANNEL=whatsapp`, `WHATSAPP_TOKEN=…`, `WHATSAPP_PHONE_NUMBER_ID=…`, and `WHATSAPP_APP_SECRET=…` (App settings → Basic → App secret). Without the secret, incoming replies are rejected, because anyone could fake them.
 3. Webhook URL: `https://<your-tunnel>/webhooks/whatsapp`, verify token = `WHATSAPP_VERIFY_TOKEN`. Subscribe to `messages`.
 4. In the app, open each test customer and set their real WhatsApp number.
 
@@ -138,6 +141,7 @@ WhatsApp only delivers free-form and button messages to people who messaged your
 | No Sarvam voice, only the browser’s | Check `TTS_MODEL` / `TTS_SPEAKER` against the Sarvam dashboard; see the server log. |
 | No sound on iPhone | Turn off silent mode, and tap the mic once (iPhones block audio until you tap). |
 | Wrong words heard | Try `STT_USE_UI_LANGUAGE=true` and pick the language in the app. |
+| Phone shows “Khata Saathi is locked” | Open the `?key=…` link the server printed at start (it changes each restart unless `MERCHANT_KEY` is set). |
 | Payment links point to localhost | Set `PUBLIC_BASE_URL` to the tunnel address and restart. |
 
-This is a hackathon prototype: there is no login, and demo controls are on until you set `DEMO_MODE=false`.
+This is a hackathon prototype: the only login is the shared `MERCHANT_KEY` link, and demo controls are on until you set `DEMO_MODE=false`.

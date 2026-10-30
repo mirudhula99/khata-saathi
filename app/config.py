@@ -1,5 +1,6 @@
 """All settings come from environment variables (or a .env file)."""
 import os
+import secrets
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -47,6 +48,8 @@ class Settings:
 
         # App
         self.database_url = _str("DATABASE_URL", f"sqlite:///{DATA_DIR / 'khata.db'}")
+        # How far "Move time forward" has moved the demo clock, kept across restarts.
+        self.clock_file = Path(_str("CLOCK_FILE", str(DATA_DIR / "clock_offset.txt")))
         self.public_base_url = _str("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
         self.shop_name = _str("SHOP_NAME", "Shanthi Stores")
         self.merchant_language = _str("MERCHANT_LANGUAGE", "ta-IN")
@@ -76,6 +79,13 @@ class Settings:
         # Runtime
         self.scheduler_enabled = _bool("SCHEDULER_ENABLED", True)
         self.demo_mode = _bool("DEMO_MODE", True)
+
+        # Access: this computer (localhost) is always let in. Any other device (the tunnel, another
+        # phone) opens the app once as /?key=<MERCHANT_KEY>. Without a key, a new one is made each start.
+        self.merchant_key = _str("MERCHANT_KEY")
+        self.merchant_key_generated = not self.merchant_key
+        if self.merchant_key_generated:
+            self.merchant_key = secrets.token_urlsafe(9)
 
     @property
     def voice_enabled(self) -> bool:

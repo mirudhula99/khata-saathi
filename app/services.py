@@ -243,18 +243,31 @@ def _start_action(db: Session, merchant: Merchant, parsed: ParsedCommand, transc
             return _reply(db, lang, key="unknown_customer", values={"name": display_name(parsed.customer_name)},
                           **common)
 
-    if parsed.intent == "request_payment" and p.customer_id:
+    if p.customer_id:
         customer = db.get(Customer, p.customer_id)
-        if customer.consent != "granted":
+        if parsed.intent == "request_payment" and customer.consent != "granted":
             db.commit()
             return _reply(db, lang, key="no_consent", values={"name": customer.display_name}, **common)
-        if parsed.amount is None and ledger.balance_paise(db, customer.id) <= 0:
+        problem = _over_balance(db, parsed.intent, customer, parsed.amount)
+        if problem:
             db.commit()
-            return _reply(db, lang, key="customer_clear", values={"name": customer.display_name}, **common)
+            return _reply(db, lang, **problem, **common)
 
     db.add(p)
     db.commit()
     return _reply_pending(db, lang, p, **common)
+
+
+def _over_balance(db: Session, kind: str, customer: Customer, amount: int | None) -> dict | None:
+    """Repayments and payment requests can't be more than the customer owes. Returns _reply kwargs, or None."""
+    if kind not in ("record_repayment", "request_payment"):
+        return None
+    bal = rupees(ledger.balance_paise(db, customer.id))
+    if bal <= 0:
+        return {"key": "customer_clear", "values": {"name": customer.display_name}}
+    if amount is not None and amount > bal:
+        return {"key": "more_than_due", "values": {"name": customer.display_name, "amount": amount, "balance": bal}}
+    return None
 
 
 def confirm_pending(db: Session, pending_id: int, lang: str | None = None, **extra) -> dict:
@@ -263,6 +276,14 @@ def confirm_pending(db: Session, pending_id: int, lang: str | None = None, **ext
     lang = norm_lang(lang or merchant.language)
     if p.state == "awaiting_choice":
         return _reply_pending(db, lang, p, **extra)
+    # Claim the action in one UPDATE so a double tap, or "yes" said while tapping Save, saves it only once.
+    claimed = db.execute(update(PendingAction).where(PendingAction.id == p.id,
+                                                     PendingAction.state == "awaiting_confirm")
+                         .values(state="done")).rowcount
+    db.commit()
+    if not claimed:
+        raise FlowError("That entry is no longer waiting. Say it again.")
+    db.refresh(p)
     return _execute(db, merchant, p, lang, **extra)
 
 
@@ -280,6 +301,10 @@ def correct_pending(db: Session, pending_id: int, amount: int | None, lang: str 
     lang = norm_lang(lang or merchant.language)
     if amount is None or not 1 <= int(amount) <= settings.max_amount_rupees:
         return _reply(db, lang, key="not_understood", pending=p, warning="amount_out_of_range", **extra)
+    customer = db.get(Customer, p.customer_id) if p.customer_id else None
+    problem = _over_balance(db, p.kind, customer, int(amount)) if customer else None
+    if problem:  # keep the entry waiting with its old amount, so the merchant can correct it again
+        return _reply(db, lang, **problem, pending=p, **extra)
     p.data = {**(p.data or {}), "amount": int(amount)}
     db.commit()
     return _reply_pending(db, lang, p, **extra)
@@ -299,6 +324,11 @@ def choose_pending(db: Session, pending_id: int, customer_id: int, lang: str | N
         p.state = "cancelled"
         db.commit()
         return _reply(db, lang, key="no_consent", values={"name": customer.display_name})
+    problem = _over_balance(db, p.kind, customer, (p.data or {}).get("amount"))
+    if problem:
+        p.state = "cancelled"
+        db.commit()
+        return _reply(db, lang, **problem)
     db.commit()
     return _reply_pending(db, lang, p)
 
@@ -334,19 +364,27 @@ def _execute(db: Session, merchant: Merchant, p: PendingAction, lang: str, **ext
     customer = db.get(Customer, p.customer_id) if p.customer_id else None
     amount = d.get("amount")
 
+    def ask_again() -> dict:  # confirm_pending already marked it done; reopen it so the merchant can retry
+        p.state = "awaiting_confirm"
+        db.commit()
+        return _reply(db, lang, key="not_understood", pending=p, **extra)
+
     if p.kind != "cash_sale" and customer is None:
         if p.kind == "add_credit" and p.new_customer_name:
             customer = create_customer(db, merchant, p.new_customer_name)
         else:
-            return _reply(db, lang, key="not_understood", pending=p, **extra)
-    if p.kind == "request_payment" and amount is None:
-        amount = rupees(ledger.balance_paise(db, customer.id))
-        if amount <= 0:
+            return ask_again()
+    if customer is not None:
+        # Checked again here: the balance may have changed since the read-back (a payment, or "no, 900").
+        problem = _over_balance(db, p.kind, customer, amount)
+        if problem:
             p.state = "cancelled"
             db.commit()
-            return _reply(db, lang, key="customer_clear", values={"name": customer.display_name}, **extra)
+            return _reply(db, lang, **problem, **extra)
+    if p.kind == "request_payment" and amount is None:
+        amount = rupees(ledger.balance_paise(db, customer.id))
     if not amount or amount <= 0:
-        return _reply(db, lang, key="not_understood", pending=p, **extra)
+        return ask_again()
 
     paise = int(amount) * 100
     p.state = "done"
@@ -402,9 +440,14 @@ def after_credit_saved(db: Session, merchant: Merchant, customer: Customer, entr
 
 def after_repayment(db: Session, merchant: Merchant, customer: Customer, paise: int, announce: bool = True) -> None:
     bal = ledger.balance_paise(db, customer.id)
+    # A part payment pushes the next reminder back but keeps its tone; going back to the gentlest one
+    # would let a customer who pays ₹10 each time never get a firmer reminder.
+    current = db.scalars(select(Reminder).where(Reminder.customer_id == customer.id,
+                                                Reminder.status == "scheduled")).first()
+    tone = current.tone_level if current else 1
     cancel_reminders(db, customer.id, "paid" if bal <= 0 else "rescheduled after payment")
     if bal > 0:
-        ensure_reminder(db, customer, clock.now() + timedelta(days=settings.reminder_gap_days), tone=1)
+        ensure_reminder(db, customer, clock.now() + timedelta(days=settings.reminder_gap_days), tone=tone)
     db.commit()
     if customer.consent == "granted":
         body = customer_text(customer.language, "receipt", name=customer.display_name, shop=merchant.shop_name,
@@ -474,15 +517,20 @@ def _quiet_until(when: datetime) -> datetime | None:
     return target.astimezone(timezone.utc).replace(tzinfo=None)
 
 
-def _send_reminder_message(db: Session, merchant: Merchant, customer: Customer, tone: int, bal_paise: int) -> None:
+SEND_FAILED = ("failed", "no_phone")
+
+
+def _send_reminder_message(db: Session, merchant: Merchant, customer: Customer, tone: int, bal_paise: int) -> Message:
     link = payments.create_link(db, merchant, customer, bal_paise)
     lang = customer.language
     body = customer_text(lang, f"reminder_{tone}", name=customer.display_name, shop=merchant.shop_name,
                          balance=rupees(bal_paise), link=link.url)
-    messaging.send(db, customer, kind="reminder", body=f"{body}\n{customer_text(lang, 'footer')}",
-                   link_url=link.url)
-    _notify_merchant(merchant, "reminder_sent", "reminder_sent",
-                     {"name": customer.display_name, "balance": rupees(bal_paise)}, customer_id=customer.id)
+    msg = messaging.send(db, customer, kind="reminder", body=f"{body}\n{customer_text(lang, 'footer')}",
+                         link_url=link.url)
+    if msg.status not in SEND_FAILED:
+        _notify_merchant(merchant, "reminder_sent", "reminder_sent",
+                         {"name": customer.display_name, "balance": rupees(bal_paise)}, customer_id=customer.id)
+    return msg
 
 
 def try_send_reminder(db: Session, merchant: Merchant, reminder: Reminder, ignore_quiet_hours: bool = False) -> bool:
@@ -519,9 +567,16 @@ def try_send_reminder(db: Session, merchant: Merchant, reminder: Reminder, ignor
         return False
 
     tone = max(1, min(reminder.tone_level, 3))
+    msg = _send_reminder_message(db, merchant, customer, tone, bal)
+    if msg.status == "no_phone":
+        return stop("skipped", "no phone number")
+    if msg.status == "failed":
+        if reminder.note == "send failed, retrying":
+            return stop("skipped", "send failed twice")
+        reminder.due_at, reminder.note = now + timedelta(hours=1), "send failed, retrying"
+        db.commit()
+        return False
     reminder.status, reminder.sent_at = "sent", now
-    db.flush()
-    _send_reminder_message(db, merchant, customer, tone, bal)
     db.add(Reminder(customer_id=customer.id, due_at=now + timedelta(days=settings.reminder_gap_days),
                     tone_level=min(tone + 1, 3), status="scheduled"))
     db.commit()
@@ -572,7 +627,11 @@ def remind_now(db: Session, customer_id: int) -> dict:
     min_gap = timedelta(hours=settings.min_hours_between_reminders)
     if last_sent and last_sent.sent_at and clock.now() - last_sent.sent_at < min_gap:
         raise FlowError(f"{customer.display_name} was already reminded today. At most one reminder a day.")
-    _send_reminder_message(db, merchant, customer, 1, bal)
+    msg = _send_reminder_message(db, merchant, customer, 1, bal)
+    if msg.status == "no_phone":
+        raise FlowError(f"Add a phone number for {customer.display_name} first.")
+    if msg.status == "failed":
+        raise FlowError(f"Couldn't send the reminder to {customer.display_name}. Check the server log and try again.")
     db.add(Reminder(customer_id=customer.id, due_at=clock.now(), tone_level=1, status="sent",
                     sent_at=clock.now(), note="sent by merchant"))
     cancel_reminders(db, customer.id, "rescheduled after manual reminder")
@@ -597,6 +656,12 @@ def handle_customer_reply(db: Session, customer: Customer, *, button_id: str | N
             if action == "ack" and entry.status == "active":
                 entry.customer_ack = "ack"
                 result = {"action": "ack"}
+            elif (action == "dispute" and entry.status == "active" and entry.type == "credit"
+                  and ledger.balance_paise(db, customer.id) < entry.amount_paise):
+                # Part of this credit is already paid: holding it back would make the balance negative.
+                messaging.send(db, customer, kind="notice",
+                               body=customer_text(lang, "dispute_paid", shop=merchant.shop_name))
+                result = {"action": "dispute_refused"}
             elif action == "dispute" and entry.status == "active" and entry.type == "credit":
                 entry.customer_ack, entry.status = "disputed", "disputed"
                 db.commit()
@@ -703,11 +768,10 @@ def join_khata(db: Session, merchant_id: int, name: str, phone: str, language: s
     if len(digits) < 10:
         raise FlowError("Enter a 10-digit mobile number.")
     customers = db.scalars(select(Customer).where(Customer.merchant_id == merchant.id)).all()
+    # Only the phone number links a join to an existing customer. A name match is not proof of identity:
+    # a stranger typing "Priya" would otherwise take over Priya's khata, reminders and payment links.
+    # To link a customer the merchant added by voice, save their phone in the app before they join.
     customer = next((c for c in customers if messaging.phone_digits(c.phone)[-10:] == digits[-10:]), None)
-    if customer is None:
-        res = resolve(db, merchant.id, name)
-        candidate = res.customer if res.kind == "match" else None
-        customer = candidate if candidate and not candidate.phone else None
     if customer is None:
         customer = create_customer(db, merchant, name, phone=phone, language=language, consent="granted")
     customer.phone = phone

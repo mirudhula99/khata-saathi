@@ -120,6 +120,14 @@ def record_verified_payment(db: Session, raw_body: bytes, headers: dict) -> dict
     amount_paise = int(event["amount_paise"])
     if amount_paise <= 0:
         raise PaymentVerificationError("Amount must be positive.")
+    # The money has really arrived, so it is always recorded (refusing would hide it from the khata).
+    # A real provider should make links single-use and fixed-amount; these warnings show when it didn't.
+    if link.status == "paid":
+        log.warning("Payment %s arrived on link %s, which was already paid.", event["payment_id"], link.id)
+    balance = ledger.balance_paise(db, link.customer_id)
+    if amount_paise > balance:
+        log.warning("Payment %s of %s paise is more than customer %s owes (%s paise); the balance goes negative.",
+                    event["payment_id"], amount_paise, link.customer_id, balance)
 
     payment = Payment(provider=provider.name, provider_payment_id=event["payment_id"], link_id=link.id,
                       customer_id=link.customer_id, amount_paise=amount_paise, verified_at=clock.now(),

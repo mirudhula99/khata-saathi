@@ -3,6 +3,7 @@
 __pycache__/
 data/*.db*
 data/tts_cache/
+data/clock_offset.txt
 web/node_modules/
 .venv-win/
 
