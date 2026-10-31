@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Languages, Mic, MicOff, Send, Square } from 'lucide-react';
-import { LanguageSelect } from '@/components/LanguageSelect';
+import { Mic, MicOff, Send, Square } from 'lucide-react';
 import { ListeningSheet } from '@/components/ListeningSheet';
 import { PaytmCard } from '@/components/paytm';
 import { useRecorder } from '@/hooks/useRecorder';
@@ -55,13 +54,8 @@ export function MicHero({ autoFocus = false, correctionHint = false, after }: { 
     <>
       <PaytmCard title={t('Speak to Saathi')} subtitle={t('Udhaar, payments, or a question')}>
         <div className="flex flex-col items-center gap-3 pt-1">
-          {/* Speaking language: its own full-width row so the title is not squeezed. Label left, dropdown right. */}
-          <label htmlFor="lang" className="flex h-11 w-full items-center justify-between gap-3 rounded-xl bg-chip px-3">
-            <span className="flex items-center gap-1.5 text-[13px] font-medium text-ink-2"><Languages className="size-4 text-blue-600" strokeWidth={1.8} aria-hidden="true" /> {t('I speak in')}</span>
-            <LanguageSelect id="lang" />
-          </label>
-
-          <div className="relative mt-2 grid place-items-center">
+          {/* The language is set once under More ("I speak, Saathi replies in"); the mic follows it. */}
+          <div className="relative mt-1 grid place-items-center">
             {listening && <span aria-hidden="true" className="ks-ring absolute size-40 rounded-full bg-sky/40" />}
             {/* Idle: a slow ring invites the first tap. Off while an entry waits, so only Save glows. */}
             {!listening && !loading && !pending && supported && <span aria-hidden="true" className="ks-ring-idle absolute size-40 rounded-full bg-sky/30" />}
