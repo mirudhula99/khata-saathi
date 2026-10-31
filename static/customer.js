@@ -7,27 +7,27 @@ const PAY_LABEL = { "en-IN": "Pay now", "hi-IN": "अभी भुगतान �
 // translated from the server. STOP / START stay as they are: WhatsApp keywords.
 const UI = {
   "en-IN": {
-    account: "Business account · WhatsApp", sandbox: "· sandbox · no real money", you: "You are",
+    account: "Business account · WhatsApp", you: "You are",
     empty: "No messages yet. Record udhaar for this customer in the shop app, or send a reminder.",
     replies: "Replies go back to the shop.", stopped: "You stopped reminders from this shop.", notDelivered: "not delivered",
   },
   "hi-IN": {
-    account: "बिज़नेस अकाउंट · WhatsApp", sandbox: "· सैंडबॉक्स · असली पैसा नहीं", you: "आप हैं",
+    account: "बिज़नेस अकाउंट · WhatsApp", you: "आप हैं",
     empty: "अभी कोई संदेश नहीं। दुकान ऐप में इस ग्राहक का उधार दर्ज करें, या रिमाइंडर भेजें।",
     replies: "जवाब दुकान को जाते हैं।", stopped: "आपने इस दुकान के रिमाइंडर बंद कर दिए।", notDelivered: "नहीं पहुँचा",
   },
   "kn-IN": {
-    account: "ವ್ಯಾಪಾರ ಖಾತೆ · WhatsApp", sandbox: "· ಸ್ಯಾಂಡ್‌ಬಾಕ್ಸ್ · ನಿಜವಾದ ಹಣವಿಲ್ಲ", you: "ನೀವು",
+    account: "ವ್ಯಾಪಾರ ಖಾತೆ · WhatsApp", you: "ನೀವು",
     empty: "ಇನ್ನೂ ಸಂದೇಶಗಳಿಲ್ಲ. ಅಂಗಡಿ ಆ್ಯಪ್‌ನಲ್ಲಿ ಈ ಗ್ರಾಹಕರಿಗೆ ಸಾಲ ದಾಖಲಿಸಿ, ಅಥವಾ ನೆನಪು ಕಳುಹಿಸಿ.",
     replies: "ಉತ್ತರಗಳು ಅಂಗಡಿಗೆ ಹೋಗುತ್ತವೆ.", stopped: "ಈ ಅಂಗಡಿಯ ನೆನಪುಗಳನ್ನು ನೀವು ನಿಲ್ಲಿಸಿದ್ದೀರಿ.", notDelivered: "ತಲುಪಿಲ್ಲ",
   },
   "ta-IN": {
-    account: "வணிகக் கணக்கு · WhatsApp", sandbox: "· சாண்ட்பாக்ஸ் · உண்மைப் பணம் இல்லை", you: "நீங்கள்",
+    account: "வணிகக் கணக்கு · WhatsApp", you: "நீங்கள்",
     empty: "இன்னும் செய்திகள் இல்லை. கடை ஆப்பில் இந்த வாடிக்கையாளருக்கு கடன் பதிவு செய்யுங்கள், அல்லது நினைவூட்டல் அனுப்புங்கள்.",
     replies: "பதில்கள் கடைக்குச் செல்லும்.", stopped: "இந்தக் கடையின் நினைவூட்டல்களை நீங்கள் நிறுத்தினீர்கள்.", notDelivered: "சேரவில்லை",
   },
   "te-IN": {
-    account: "వ్యాపార ఖాతా · WhatsApp", sandbox: "· శాండ్‌బాక్స్ · నిజమైన డబ్బు కాదు", you: "మీరు",
+    account: "వ్యాపార ఖాతా · WhatsApp", you: "మీరు",
     empty: "ఇంకా మెసేజ్‌లు లేవు. షాప్ యాప్‌లో ఈ కస్టమర్‌కు అప్పు నమోదు చేయండి, లేదా గుర్తు పంపండి.",
     replies: "జవాబులు షాప్‌కి వెళ్తాయి.", stopped: "ఈ షాప్ గుర్తులను మీరు ఆపేశారు.", notDelivered: "చేరలేదు",
   },
@@ -76,7 +76,6 @@ function render() {
   $("#shop").textContent = view.shop;
   $(".wa-avatar").textContent = (view.shop || "S").trim().charAt(0).toUpperCase();
   $("#accountLine").textContent = t.account;
-  $("#sandboxLine").textContent = t.sandbox;
   $("#youAre").textContent = t.you;
   const optedOut = view.customer.consent === "opted_out";
   const stop = $("#stopBtn");

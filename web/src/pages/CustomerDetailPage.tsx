@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Bell, CheckCircle2, FileText, ChevronDown, ChevronLeft, CirclePause, CirclePlay, HandCoins, IndianRupee, Link2, MessageCircle, PenLine, Send, ShoppingBasket, Smartphone, Undo2, Wallet } from 'lucide-react';
+import { Bell, CheckCircle2, FileText, ChevronDown, ChevronLeft, CirclePause, CirclePlay, HandCoins, IndianRupee, Link2, MessageCircle, PenLine, Send, ShoppingBasket, Undo2, Wallet } from 'lucide-react';
 
 /** History rows shown before a "Show N more" step, so a regular's twenty entries don't make the screen endless. */
 const HISTORY_PAGE = 5;
@@ -55,7 +55,7 @@ export function CustomerDetailPage() {
 
   return (
     <AppShell>
-      <CompactHeader title={c.name} left={back} right={<a href={`${c.channel === 'paytm' ? '/paytm' : '/customer'}?id=${c.id}`} target="_blank" rel="noopener" className="-mr-2 inline-flex h-11 items-center gap-1 pl-2 font-semibold active:opacity-70">{c.channel === 'paytm' ? <Wallet className="size-5" strokeWidth={1.8} /> : <Smartphone className="size-5" strokeWidth={1.8} />} {c.channel === 'paytm' ? t('Paytm') : t('Phone')}</a>} />
+      <CompactHeader title={c.name} left={back} />
       <Scroll className="pb-6">
         <div className="flex flex-col gap-3 px-4 pt-3">
           {/* Hero: who, how much, since when, and the four actions. */}
