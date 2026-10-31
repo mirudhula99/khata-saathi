@@ -16,8 +16,8 @@ from .models import Customer, LedgerEntry, Merchant, Message, Reminder
 from .resolver import name_key
 
 # name, note, language, consent, payment habit, owes now (₹), oldest unpaid (days)
-# Six customers owe ₹2,000 in total, three on each channel: Ramesh (Gandhi Street) ₹800 for 40 days, Fatima ₹260
-# and Priya ₹180 on WhatsApp; Kumaran ₹320, Ravi ₹290 and Suresh ₹150 in the Paytm app. The live demo entry for
+# Eight customers owe ₹2,450 in total, four on each channel: Ramesh (Gandhi Street) ₹800 for 40 days, Fatima ₹260,
+# Meena ₹220 and Priya ₹180 on WhatsApp; Kumaran ₹320, Ravi ₹290, Ganesh ₹230 and Suresh ₹150 in the Paytm app. The live demo entry for
 # Lakshmi starts from zero. Everyone else is settled but has history, so the khata looks lived-in and
 # "What about Ravi?" has a repayment record to read out.
 CUSTOMERS = [
@@ -30,13 +30,13 @@ CUSTOMERS = [
     ("Priya", "", "en-IN", "granted", "normal", 180, 3),
     ("Arjun", "", "en-IN", "pending", "normal", 0, 0),
     ("Fatima", "", "en-IN", "granted", "fast", 260, 6),
-    ("Meena", "", "en-IN", "granted", "fast", 0, 0),
+    ("Meena", "", "en-IN", "granted", "fast", 220, 9),
     ("Venkatesh", "", "en-IN", "pending", "slow", 0, 0),
     ("Anitha", "", "en-IN", "granted", "fast", 0, 0),
     ("Deepa", "", "en-IN", "granted", "fast", 0, 0),
     ("Imran", "", "en-IN", "granted", "slow", 0, 0),
     ("Sowmya", "", "en-IN", "pending", "fast", 0, 0),
-    ("Ganesh", "", "en-IN", "granted", "normal", 0, 0),
+    ("Ganesh", "", "en-IN", "granted", "normal", 230, 15),
     ("Kavya", "", "en-IN", "granted", "fast", 0, 0),
     ("Rahul", "", "en-IN", "granted", "normal", 0, 0),
     ("Nandini", "", "en-IN", "opted_out", "slow", 0, 0),
@@ -48,11 +48,11 @@ ITEMS = ["rice 5 kg", "toor dal 1 kg", "sugar 2 kg", "oil 1 L", "milk", "bread",
 AMOUNTS = [80, 120, 150, 180, 200, 250, 300, 350, 400, 450, 500]
 
 
-# Three customers on each channel get a short message history: the udhaar notes they confirmed, a receipt for each
+# Four customers on each channel get a short message history: the udhaar notes they confirmed, a receipt for each
 # payment and, if they still owe, a reminder with a pay link. Lakshmi stays empty for the live demo entry.
-PAYTM_CUSTOMERS = {"Ravi", "Suresh", "Kumaran"}
-THREADS = {("Ravi", ""), ("Suresh", ""), ("Kumaran", "Bus stand"),            # Paytm app
-           ("Ramesh", "Gandhi Street"), ("Priya", ""), ("Fatima", "")}     # WhatsApp
+PAYTM_CUSTOMERS = {"Ravi", "Suresh", "Kumaran", "Ganesh"}
+THREADS = {("Ravi", ""), ("Suresh", ""), ("Kumaran", "Bus stand"), ("Ganesh", ""),          # Paytm app
+           ("Ramesh", "Gandhi Street"), ("Priya", ""), ("Fatima", ""), ("Meena", "")}     # WhatsApp
 
 
 def _seed_messages(db: Session, merchant: Merchant, customer: Customer) -> None:
@@ -155,7 +155,7 @@ def seed(db: Session) -> Merchant:
                 db.add(Reminder(customer_id=customer.id, due_at=clock.now() + timedelta(days=1),
                                 tone_level=1, status="scheduled", note="seeded"))
 
-    # Message history for the six demo customers (three per channel), so both phone screens have something to show.
+    # Message history for the eight demo customers (four per channel), so both phone screens have something to show.
     db.flush()
     for customer in db.query(Customer).filter(Customer.merchant_id == merchant.id).all():
         if (customer.display_name, customer.note) in THREADS:

@@ -85,7 +85,7 @@ Roles: one person is the merchant (phone with the app), one is Lakshmi (second p
 2. **Customer confirms.** Lakshmi’s screen shows the entry with **Correct / Wrong amount** buttons.
 3. **Remind.** Demo tools → **Move time forward 3 days**. Lakshmi gets a polite reminder with **Pay now**.
 4. **Collect.** Lakshmi pays ₹100 of ₹150. The shop phone announces *“Lakshmi paid ₹100. ₹50 left.”*
-5. **Ask.** Merchant asks *“Who owes me money?”* (answer: 6 customers owe ₹2,000, Ramesh ₹800 for 40 days) and *“How much does Ravi owe?”*
+5. **Ask.** Merchant asks *“Who owes me money?”* (answer: 8 customers owe ₹2,450, Ramesh ₹800 for 40 days) and *“How much does Ravi owe?”*
 6. **Which Ramesh?** Merchant says *“Ramesh paid 300 cash”*. The app asks which Ramesh.
 7. **Request.** Merchant says *“Ask Ravi for 290”*. Ravi gets a payment link.
 

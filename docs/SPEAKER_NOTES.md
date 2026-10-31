@@ -6,7 +6,7 @@ Total: 3 minutes talk + 90 seconds live demo + Q&A. You present. Your friend dri
 
 1. Laptop on your phone hotspot, not venue Wi-Fi. Chrome open.
 2. Restart the server: Ctrl+C in the server window, then `run-windows.cmd` (or the uvicorn command). Open http://localhost:8000.
-3. More → hold the **More** title → **Reset demo data** → Reset. Check the home chart says ₹2,000 pending · 6 customers.
+3. More → hold the **More** title → **Reset demo data** → Reset. Check the home chart says ₹2,450 pending · 8 customers.
 4. Second tab: Customer's phone, pick **Lakshmi**. Keep it open; you will switch to it twice.
 5. Decide voice or type. If the room is loud or the key is off, type. The flow is identical. Do not fight the mic on stage.
 6. Language dropdown: Tamil (or whatever you will actually speak). Read-backs come in that language.
@@ -30,7 +30,7 @@ Total: 3 minutes talk + 90 seconds live demo + Q&A. You present. Your friend dri
 
 | Step | Do | Say while it happens |
 |---|---|---|
-| 1 | Home. Type or say **"Who owes me money?"** | "First, the question every shopkeeper asks at closing time." Reply: *6 customers owe ₹2,000. Ramesh ₹800 for 40 days…* "That's the whole notebook, answered in one sentence." |
+| 1 | Home. Type or say **"Who owes me money?"** | "First, the question every shopkeeper asks at closing time." Reply: *8 customers owe ₹2,450. Ramesh ₹800 for 40 days…* "That's the whole notebook, answered in one sentence." |
 | 2 | Type or say **"Lakshmi ku 150 rupees udhaar, 2 kg rice"** | "Now a new entry, the way a merchant actually talks: Tamil and English mixed." Read-back appears. "Nothing is saved yet. AI understands, code calculates. The merchant approves." Tap **Save**. |
 | 3 | Switch to the Lakshmi tab | "Lakshmi gets this on WhatsApp instantly, in her language, with Confirm and Flag. Two-sided entries: no more 'I never took that much'." Tap **Confirm**. Switch back. |
 | 4 | More → hold the **More** title → **Move time forward 3 days** | "On stage we can't wait three days, so we move the clock. Reminders go out on a schedule, 9am to 8pm, at most one a day, only with consent." Caption now shows the shifted date. |
@@ -40,7 +40,7 @@ Total: 3 minutes talk + 90 seconds live demo + Q&A. You present. Your friend dri
 
 **Paytm app moment (15 s):** on Reminders, Ravi's row carries a wallet mark: he gets reminders inside the Paytm app, not WhatsApp. Tap his icon: the mock Paytm app opens with the reminder as a notification, Pay opens the Paytm payment sheet. Say: "Same assistant, two channels. WhatsApp for most customers, in-app for Paytm users, same ledger either way."
 
-**Language moment (15 s):** on the home screen change "I speak in" to Tamil. Every screen, the reminder text and Ramesh's phone flip to Tamil. Say: "A Kannada or Tamil shopkeeper never sees English. Same ledger, their language." Switch back to English before you continue.
+**Language moment (15 s):** More → "I speak, Saathi replies in" → Tamil, then back to Saathi. Every screen, the reminder text and Ramesh's phone flip to Tamil. Say: "A Kannada or Tamil shopkeeper never sees English. Same ledger, their language." Switch back to English before you continue.
 
 **Bonus if time (15 s):** type "Ramesh paid 300 cash" → "Which Ramesh?" dialog. "Two Rameshes. It never guesses on money."
 
@@ -71,4 +71,4 @@ Friend says: "Sarvam speech-to-text for code-mixed Indian speech, an LLM that on
 
 ## Numbers to have in your head
 
-₹2,000 pending across 6 customers (3 on WhatsApp, 3 in the Paytm app). Ramesh ₹800 for 40 days. Lakshmi's entry ₹150. 1.2 crore kiranas. 1.17 crore Soundbox merchants. Four languages plus English. 9am to 8pm, one reminder a day.
+₹2,450 pending across 8 customers (4 on WhatsApp, 4 in the Paytm app). Ramesh ₹800 for 40 days. Lakshmi's entry ₹150. 1.2 crore kiranas. 1.17 crore Soundbox merchants. Four languages plus English. 9am to 8pm, one reminder a day.

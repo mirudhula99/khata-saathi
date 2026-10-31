@@ -177,10 +177,11 @@ class GuardrailTests(unittest.TestCase):
 
     def test_failed_send_is_not_counted_as_sent(self):
         ravi = self.customers["Ravi|"]["id"]
-        # The seed puts Ravi, Suresh and Kumaran on the Paytm app channel (in-app notifications never fail);
-        # this test is about WhatsApp sends, so all of them go back to WhatsApp.
-        for key in ("Ravi|", "Suresh|", "Kumaran|Bus stand"):
-            self.client.patch(f"/api/customers/{self.customers[key]['id']}", json={"channel": "whatsapp"})
+        # Paytm-app customers get in-app notifications, which never fail; this test is about WhatsApp sends,
+        # so every Paytm customer goes back to WhatsApp first (read from the state, so a new seed can't break it).
+        for c in self.client.get("/api/state").json()["customers"]:
+            if c["channel"] == "paytm":
+                self.client.patch(f"/api/customers/{c['id']}", json={"channel": "whatsapp"})
         settings.messaging_channel = "whatsapp"  # no token configured, so every send fails
         try:
             response = self.client.post(f"/api/customers/{ravi}/remind", json={})

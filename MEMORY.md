@@ -32,7 +32,7 @@ Other devices need the one-time `/?key=<MERCHANT_KEY>` link printed at startup; 
 
 ## Seed data (matches the deck)
 
-Shanthi Stores, 20 customers. 6 owe ₹2,000, three per channel. WhatsApp: Ramesh (Gandhi Street) ₹800 for 40 days, Fatima ₹260, Priya ₹180. Paytm app: Kumaran ₹320, Ravi ₹290 for 12 days, Suresh ₹150 for 5 days. Each of the six has a seeded message history (confirmed udhaar notes, receipts, yesterday's reminder). Lakshmi starts at zero for the hero entry. A second Ramesh (Teacher) exists for the "Which Ramesh?" moment. Seeded debtors have scheduled reminders, so "Move time forward 3 days" sends them. "Who owes me money?" answers: "6 customers owe ₹2,000. Most: Ramesh ₹800 for 40 days, Kumaran ₹320, Ravi ₹290."
+Shanthi Stores, 20 customers. 8 owe ₹2,450, four per channel. WhatsApp: Ramesh (Gandhi Street) ₹800 for 40 days, Fatima ₹260, Priya ₹180. Paytm app: Kumaran ₹320, Ravi ₹290 for 12 days, Suresh ₹150 for 5 days. Each of the six has a seeded message history (confirmed udhaar notes, receipts, yesterday's reminder). Lakshmi starts at zero for the hero entry. A second Ramesh (Teacher) exists for the "Which Ramesh?" moment. Seeded debtors have scheduled reminders, so "Move time forward 3 days" sends them. "Who owes me money?" answers: "6 customers owe ₹2,000. Most: Ramesh ₹800 for 40 days, Kumaran ₹320, Ravi ₹290."
 
 ## UI decisions that were made deliberately
 
@@ -57,7 +57,7 @@ Known and accepted for the hackathon: no auth beyond the merchant key link; What
 
 WhatsApp is a simulator with the Cloud API wired behind a flag. Payments are a mock provider whose signed webhook goes through the same verification, de-duplication and ledger code a real Paytm callback would. Everything else, the ledger, confirm-before-save, disputes, reminder guardrails, reconciliation, five-language replies, is real.
 
-## Languages (whole app follows "I speak in")
+## Languages (whole app follows the merchant language set under More → "I speak, Saathi replies in"; the home mic card no longer has its own dropdown)
 
 - Frontend: `web/src/lib/i18n.ts` (`useT()` in components, `tNow()` in the store) looks each English string up in the merchant's language; English is the fallback. Dictionaries per area in `web/src/i18n/{shared,saathi,khata,more}.ts`, keys = the exact English strings, placeholders `{name}`. Hindi, Kannada, Tamil, Telugu.
 - Backend: `app/i18n.py` has MERCHANT (Saathi replies), CUSTOMER (WhatsApp messages) and NOTIF (bell items) tables in all five languages; `notifications.build(db, merchant_id, lang)`. `FlowError` texts stay English.
@@ -66,7 +66,7 @@ WhatsApp is a simulator with the Cloud API wired behind a flag. Payments are a m
 
 ## Customer channels (WhatsApp or the Paytm app)
 
-- `Customer.channel` = `whatsapp` (default) or `paytm`; editable on the customer page ("Reminders via"), shown as a small mark on Khata and Reminders rows. Seed: Ravi is on the Paytm app, everyone else on WhatsApp.
+- `Customer.channel` = `whatsapp` (default) or `paytm`; editable on the customer page ("Reminders via"), shown as a small mark on Khata and Reminders rows. Seed (31 Oct): eight debtors, four per channel. WhatsApp: Ramesh (Gandhi Street) ₹800/40d, Fatima ₹260, Meena ₹220, Priya ₹180. Paytm app: Kumaran ₹320, Ravi ₹290, Ganesh ₹230, Suresh ₹150. Total ₹2,450. All eight have seeded message history; Lakshmi stays empty for the live entry.
 - Paytm-channel messages are stored with `channel="paytm"`, status delivered, and never go to the WhatsApp API. The mock Paytm app is `static/paytm.html` + `paytm.js` at `/paytm?id=<customer>`: notifications list (Pay, Amount wrong?), a reminders switch (STOP/START), and a Paytm-style payment sheet that posts to the same `/api/pay/{link}/simulate` mock webhook as the WhatsApp pay page.
 - The phone icon on a row opens `/customer?id=` for WhatsApp customers and `/paytm?id=` for Paytm ones.
 - Translations are agent-written drafts; have a native speaker read Tamil and Kannada before showing them to a judge who speaks them.
