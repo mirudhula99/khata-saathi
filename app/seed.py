@@ -8,10 +8,11 @@ from datetime import timedelta
 
 from sqlalchemy.orm import Session
 
-from . import clock, ledger
+from . import clock, ledger, payments
 from .config import settings
 from .db import SessionLocal, reset_db
-from .models import Customer, Merchant, Reminder
+from .i18n import customer_text, items_text
+from .models import Customer, LedgerEntry, Merchant, Message, Reminder
 from .resolver import name_key
 
 # name, note, language, consent, payment habit, owes now (₹), oldest unpaid (days)
@@ -47,6 +48,57 @@ ITEMS = ["rice 5 kg", "toor dal 1 kg", "sugar 2 kg", "oil 1 L", "milk", "bread",
 AMOUNTS = [80, 120, 150, 180, 200, 250, 300, 350, 400, 450, 500]
 
 
+# Three customers on each channel get a short message history: the udhaar notes they confirmed, a receipt for each
+# payment and, if they still owe, a reminder with a pay link. Lakshmi stays empty for the live demo entry.
+PAYTM_CUSTOMERS = {"Ravi", "Suresh", "Kumaran"}
+THREADS = {("Ravi", ""), ("Suresh", ""), ("Kumaran", "Bus stand"),            # Paytm app
+           ("Ramesh", "Gandhi Street"), ("Priya", ""), ("Fatima", "")}     # WhatsApp
+
+
+def _seed_messages(db: Session, merchant: Merchant, customer: Customer) -> None:
+    lang = customer.language
+    channel = "paytm" if customer.channel == "paytm" else settings.messaging_channel
+    entries = sorted(db.query(LedgerEntry).filter(LedgerEntry.customer_id == customer.id).all(),
+                     key=lambda e: e.created_at)
+
+    def out(at, kind, body, buttons=None, link=None):
+        db.add(Message(customer_id=customer.id, direction="out", channel=channel, kind=kind, body=body,
+                       buttons=buttons or [], link_url=link, status="delivered", created_at=at))
+
+    running = 0
+    shown = entries[-3:]  # the latest three entries: enough to look lived-in, short enough to read on stage
+    for e in entries:
+        running += e.signed_paise
+        if e not in shown:
+            continue
+        if e.type == "credit":
+            body = customer_text(lang, "credit_note", shop=merchant.shop_name, amount=ledger.rupees(e.amount_paise),
+                                 items=items_text(e.items), balance=ledger.rupees(running))
+            out(e.created_at, "credit_note", f"{body}\n{customer_text(lang, 'footer')}",
+                buttons=[{"id": f"ack:{e.id}", "title": customer_text(lang, "btn_ack")},
+                         {"id": f"dispute:{e.id}", "title": customer_text(lang, "btn_dispute")}])
+            db.add(Message(customer_id=customer.id, direction="in", channel=channel, kind="reply",
+                           body=customer_text(lang, "btn_ack"), status="received",
+                           created_at=e.created_at + timedelta(minutes=12)))
+            e.customer_ack = "ack"
+        elif e.type == "repayment":
+            out(e.created_at, "receipt", customer_text(lang, "receipt", name=customer.display_name, shop=merchant.shop_name,
+                                                       amount=ledger.rupees(e.amount_paise),
+                                                       balance=ledger.rupees(max(running, 0))))
+    if running > 0:  # still owes: one polite reminder yesterday, with a pay link
+        # Inside the reminder gap, so a fresh demo has no "hasn't paid after a reminder" task yet; after
+        # "Move time forward", it does.
+        at = clock.now() - timedelta(days=1, hours=2)
+        link = payments.create_link(db, merchant, customer, running)
+        link.created_at = at
+        body = customer_text(lang, "reminder_1", name=customer.display_name, shop=merchant.shop_name,
+                             balance=ledger.rupees(running), link=link.url)
+        from .services import reminder_buttons  # services imports nothing from seed, so this is safe here
+        out(at, "reminder", f"{body}\n{customer_text(lang, 'footer')}", buttons=reminder_buttons(lang), link=link.url)
+        db.add(Reminder(customer_id=customer.id, due_at=at, tone_level=1, status="sent", sent_at=at,
+                        note="seeded"))
+
+
 def _at(days_ago: float, rng: random.Random):
     return clock.now() - timedelta(days=days_ago, hours=rng.randint(0, 8), minutes=rng.randint(0, 59))
 
@@ -65,8 +117,8 @@ def seed(db: Session) -> Merchant:
             consent_at=clock.now() - timedelta(days=60) if consent != "pending" else None,
             created_at=clock.now() - timedelta(days=62),
         )
-        # Demo: Ravi gets his reminders inside the Paytm app; everyone else on WhatsApp.
-        customer.channel = "paytm" if name == "Ravi" else "whatsapp"
+        # Demo: three customers get their messages inside the Paytm app, the rest on WhatsApp.
+        customer.channel = "paytm" if name in PAYTM_CUSTOMERS else "whatsapp"
         db.add(customer)
         db.flush()
 
@@ -102,6 +154,12 @@ def seed(db: Session) -> Merchant:
             if consent == "granted":
                 db.add(Reminder(customer_id=customer.id, due_at=clock.now() + timedelta(days=1),
                                 tone_level=1, status="scheduled", note="seeded"))
+
+    # Message history for the six demo customers (three per channel), so both phone screens have something to show.
+    db.flush()
+    for customer in db.query(Customer).filter(Customer.merchant_id == merchant.id).all():
+        if (customer.display_name, customer.note) in THREADS:
+            _seed_messages(db, merchant, customer)
 
     # A few cash sales today for the daily summary.
     for amount, hours in ((120, 5), (340, 3), (85, 1)):

@@ -12,8 +12,10 @@ cd khata-saathi
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env          # then put your SARVAM_API_KEY in .env
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8000 --timeout-graceful-shutdown 3
 ```
+
+`--timeout-graceful-shutdown 3` matters: the app keeps a live-updates connection open in every browser tab, and without it the server can hang on Ctrl+C or on a code reload until those tabs close.
 
 Open http://localhost:8000. Demo data loads on first start: one shop, 20 customers, two months of history.
 
@@ -35,7 +37,7 @@ cd khata-saathi
 py -3.12 -m venv .venv-win
 .\.venv-win\Scripts\python.exe -m pip install -r requirements.txt
 copy .env.example .env          # then put your SARVAM_API_KEY in .env
-.\.venv-win\Scripts\python.exe -m uvicorn app.main:app --port 8000
+.\.venv-win\Scripts\python.exe -m uvicorn app.main:app --port 8000 --timeout-graceful-shutdown 3
 ```
 
 Open http://localhost:8000. After the first setup, `run-windows.cmd` (double-click) starts the server with the same command.

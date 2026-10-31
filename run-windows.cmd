@@ -8,5 +8,5 @@ if not exist ".venv-win\Scripts\python.exe" (
   exit /b 1
 )
 echo Starting Khata Saathi on http://localhost:8000  (Ctrl+C to stop)
-".venv-win\Scripts\python.exe" -m uvicorn app.main:app --port 8000
+".venv-win\Scripts\python.exe" -m uvicorn app.main:app --port 8000 --timeout-graceful-shutdown 3
 pause
