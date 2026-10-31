@@ -51,7 +51,7 @@ export function ReminderMessageSheet({ customer, open, onOpenChange }: { custome
         </div>
         <SheetDescription className="sr-only">Add your own line to this customer's reminders. The payment link and the STOP line are always included.</SheetDescription>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-[max(env(safe-area-inset-bottom),16px)]">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto px-4 pb-[max(env(safe-area-inset-bottom),16px)]">
           {/* What they get: a WhatsApp-style bubble, locked parts in grey, the merchant's line in ink. */}
           <div className="rounded-2xl bg-wa-bg p-3">
             <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-2"><MessageCircle className="size-3.5" strokeWidth={2} /> What {customer.name.split(' ')[0]} gets</div>
@@ -73,9 +73,9 @@ export function ReminderMessageSheet({ customer, open, onOpenChange }: { custome
           </label>
           <p className="flex items-start gap-1.5 text-[12px] leading-snug text-ink-2"><Lock className="mt-0.5 size-3.5 shrink-0" strokeWidth={2} /> The greeting, the amount, the payment link and the STOP line are always sent, in {customer.name.split(' ')[0]}'s language. Your line goes with them in every reminder until you clear it.</p>
 
-          <div className="flex gap-2 pt-1">
-            {(customer.reminder_note ?? '') && <PaytmButton variant="outline" onClick={() => void save('')} disabled={saving}>Clear line</PaytmButton>}
-            <PaytmButton variant="primary" full onClick={() => void save(typed)} disabled={saving || !changed}>{saving ? 'Saving…' : 'Save'}</PaytmButton>
+          <div className="flex min-w-0 gap-2 pt-1">
+            {(customer.reminder_note ?? '') !== '' && <PaytmButton variant="outline" className="shrink-0" onClick={() => void save('')} disabled={saving}>Clear line</PaytmButton>}
+            <PaytmButton variant="primary" className="min-w-0 flex-1" onClick={() => void save(typed)} disabled={saving || !changed}>{saving ? 'Saving…' : 'Save'}</PaytmButton>
           </div>
         </div>
       </SheetContent>
