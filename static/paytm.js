@@ -11,31 +11,31 @@ let source = null;
 let seenAt = 0;
 
 const UI = {
-  "en-IN": { you: "You are", sandbox: "sandbox · no real money", title: "Notifications", mute: "Reminders from this shop",
+  "en-IN": { you: "You are", title: "Notifications", mute: "Reminders from this shop",
     empty: "No notifications yet. The shop's entries and reminders will show up here.", pay: "Pay {amount}", wrong: "Amount wrong?",
     correct: "Correct", wrongAmount: "Wrong amount", payFrom: "Pay From", choose: "Choose Payment Methods", wallet: "Paytm Wallet",
     other: "Other Payment Mode", cards: "Debit & Credit Cards", netbanking: "Net Banking", upi: "UPI Payment", payBtn: "Pay {amount}",
     paid: "Paid {amount}", to: "to {shop}", remaining: "Remaining with {shop}: {amount}", nothing: "Nothing left to pay. Thank you!",
     done: "Done", test: "Test payment. No real money moves.", tooMuch: "You owe only {amount}.", min: "Enter an amount of at least ₹1." },
-  "hi-IN": { you: "आप हैं", sandbox: "सैंडबॉक्स · असली पैसा नहीं", title: "सूचनाएँ", mute: "इस दुकान से रिमाइंडर",
+  "hi-IN": { you: "आप हैं", title: "सूचनाएँ", mute: "इस दुकान से रिमाइंडर",
     empty: "अभी कोई सूचना नहीं। दुकान की एंट्री और रिमाइंडर यहाँ दिखेंगे।", pay: "{amount} चुकाएँ", wrong: "राशि गलत है?",
     correct: "सही है", wrongAmount: "गलत रकम", payFrom: "भुगतान करें", choose: "भुगतान का तरीका चुनें", wallet: "Paytm वॉलेट",
     other: "अन्य तरीके", cards: "डेबिट और क्रेडिट कार्ड", netbanking: "नेट बैंकिंग", upi: "UPI भुगतान", payBtn: "{amount} चुकाएँ",
     paid: "{amount} चुकाए", to: "{shop} को", remaining: "{shop} पर बाकी: {amount}", nothing: "कुछ बाकी नहीं। धन्यवाद!",
     done: "ठीक है", test: "टेस्ट भुगतान। असली पैसा नहीं जाता।", tooMuch: "आप पर केवल {amount} बकाया है।", min: "कम से कम ₹1 लिखें।" },
-  "kn-IN": { you: "ನೀವು", sandbox: "ಸ್ಯಾಂಡ್‌ಬಾಕ್ಸ್ · ನಿಜವಾದ ಹಣವಿಲ್ಲ", title: "ಅಧಿಸೂಚನೆಗಳು", mute: "ಈ ಅಂಗಡಿಯಿಂದ ನೆನಪುಗಳು",
+  "kn-IN": { you: "ನೀವು", title: "ಅಧಿಸೂಚನೆಗಳು", mute: "ಈ ಅಂಗಡಿಯಿಂದ ನೆನಪುಗಳು",
     empty: "ಇನ್ನೂ ಅಧಿಸೂಚನೆಗಳಿಲ್ಲ. ಅಂಗಡಿಯ ನಮೂದುಗಳು ಮತ್ತು ನೆನಪುಗಳು ಇಲ್ಲಿ ಬರುತ್ತವೆ.", pay: "{amount} ಪಾವತಿಸಿ", wrong: "ಮೊತ್ತ ತಪ್ಪೇ?",
     correct: "ಸರಿ", wrongAmount: "ತಪ್ಪು ಮೊತ್ತ", payFrom: "ಪಾವತಿಸಿ", choose: "ಪಾವತಿ ವಿಧಾನ ಆರಿಸಿ", wallet: "Paytm ವಾಲೆಟ್",
     other: "ಇತರ ವಿಧಾನಗಳು", cards: "ಡೆಬಿಟ್ ಮತ್ತು ಕ್ರೆಡಿಟ್ ಕಾರ್ಡ್", netbanking: "ನೆಟ್ ಬ್ಯಾಂಕಿಂಗ್", upi: "UPI ಪಾವತಿ", payBtn: "{amount} ಪಾವತಿಸಿ",
     paid: "{amount} ಪಾವತಿಸಲಾಗಿದೆ", to: "{shop} ಗೆ", remaining: "{shop} ನಲ್ಲಿ ಬಾಕಿ: {amount}", nothing: "ಬಾಕಿ ಇಲ್ಲ. ಧನ್ಯವಾದ!",
     done: "ಸರಿ", test: "ಪರೀಕ್ಷಾ ಪಾವತಿ. ನಿಜವಾದ ಹಣ ಹೋಗುವುದಿಲ್ಲ.", tooMuch: "ನೀವು {amount} ಮಾತ್ರ ಕೊಡಬೇಕು.", min: "ಕನಿಷ್ಠ ₹1 ನಮೂದಿಸಿ." },
-  "ta-IN": { you: "நீங்கள்", sandbox: "சாண்ட்பாக்ஸ் · உண்மையான பணம் இல்லை", title: "அறிவிப்புகள்", mute: "இந்தக் கடையின் நினைவூட்டல்கள்",
+  "ta-IN": { you: "நீங்கள்", title: "அறிவிப்புகள்", mute: "இந்தக் கடையின் நினைவூட்டல்கள்",
     empty: "இன்னும் அறிவிப்புகள் இல்லை. கடையின் பதிவுகளும் நினைவூட்டல்களும் இங்கே வரும்.", pay: "{amount} செலுத்து", wrong: "தொகை தவறா?",
     correct: "சரி", wrongAmount: "தவறான தொகை", payFrom: "செலுத்து", choose: "செலுத்தும் முறையைத் தேர்வு செய்க", wallet: "Paytm வாலட்",
     other: "பிற முறைகள்", cards: "டெபிட் & கிரெடிட் கார்டு", netbanking: "நெட் பேங்கிங்", upi: "UPI", payBtn: "{amount} செலுத்து",
     paid: "{amount} செலுத்தப்பட்டது", to: "{shop} க்கு", remaining: "{shop} இல் பாக்கி: {amount}", nothing: "பாக்கி இல்லை. நன்றி!",
     done: "சரி", test: "சோதனைப் பணம். உண்மையான பணம் போகாது.", tooMuch: "நீங்கள் {amount} மட்டுமே தர வேண்டும்.", min: "குறைந்தது ₹1 உள்ளிடுங்கள்." },
-  "te-IN": { you: "మీరు", sandbox: "శాండ్‌బాక్స్ · నిజమైన డబ్బు లేదు", title: "నోటిఫికేషన్లు", mute: "ఈ దుకాణం నుండి గుర్తులు",
+  "te-IN": { you: "మీరు", title: "నోటిఫికేషన్లు", mute: "ఈ దుకాణం నుండి గుర్తులు",
     empty: "ఇంకా నోటిఫికేషన్లు లేవు. దుకాణం ఎంట్రీలు, గుర్తులు ఇక్కడ కనిపిస్తాయి.", pay: "{amount} చెల్లించండి", wrong: "మొత్తం తప్పా?",
     correct: "సరైనది", wrongAmount: "తప్పు మొత్తం", payFrom: "చెల్లించండి", choose: "చెల్లింపు విధానం ఎంచుకోండి", wallet: "Paytm వాలెట్",
     other: "ఇతర విధానాలు", cards: "డెబిట్ & క్రెడిట్ కార్డులు", netbanking: "నెట్ బ్యాంకింగ్", upi: "UPI చెల్లింపు", payBtn: "{amount} చెల్లించండి",
@@ -67,7 +67,7 @@ function render() {
   const c = view.customer;
   $("#shopName").textContent = view.shop;
   $("#whoName").textContent = c.note ? `${c.name} (${c.note})` : c.name;
-  $("#youAre").textContent = t("you"); $("#sandbox").textContent = t("sandbox"); $("#title").textContent = t("title"); $("#muteLabel").textContent = t("mute");
+  $("#youAre").textContent = t("you"); $("#title").textContent = t("title"); $("#muteLabel").textContent = t("mute");
   $("#sheetTitle").textContent = t("payFrom");
   const on = c.consent !== "opted_out";
   $("#mute").classList.toggle("on", on); $("#mute").setAttribute("aria-checked", String(on));

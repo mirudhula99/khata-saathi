@@ -289,8 +289,6 @@ button { cursor: pointer; }
 .simple-page .back-link { position: absolute; top: calc(10px + env(safe-area-inset-top)); left: 10px; color: var(--navy, #002E6E); background: rgba(0,46,110,.08); }
 .simple-page { position: relative; }
 .topbar .back-link { grid-column: 1 / -1; justify-self: start; margin-bottom: 2px; }
-/* Customer phone header: the sandbox note as fine print, not a strip. */
-.phone-top .fineprint { font-size: 10px; letter-spacing: .02em; opacity: .7; }
 
 /* Customer phone: WhatsApp business look. Header = the shop as the chat partner; "You are …" says whose phone this is. */
 .wa-head { display: flex; align-items: center; gap: 10px; }
