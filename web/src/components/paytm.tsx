@@ -1,9 +1,10 @@
-import { createElement, isValidElement, type ComponentProps, type ReactElement, type ReactNode } from 'react';
+import { createElement, isValidElement, useEffect, type ComponentProps, type ReactElement, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, ChevronLeft, ChevronRight, Search, type LucideIcon } from 'lucide-react';
 import { initial } from '@/lib/ui';
 import { cn } from '@/lib/utils';
 import { useKhata } from '@/store/useKhata';
+import { useNotifications } from '@/store/useNotifications';
 
 /**
  * Paytm (PODS) primitives for Khata Saathi. Visual contract: .superdesign/paytm-pods-spec.md section 4.
@@ -62,6 +63,24 @@ export function TopBarIcon({ icon, label, to, href, onClick, className }: { icon
   return <button type="button" onClick={onClick} aria-label={label} className={cls}>{node}</button>;
 }
 
+/** The bell: opens Notifications and wears a count of open tasks plus unseen events. Reloads whenever the khata changes. */
+export function NotificationsBell() {
+  const state = useKhata((s) => s.state);
+  const load = useNotifications((s) => s.load);
+  const count = useNotifications((s) => s.unreadCount());
+  useEffect(() => { void load(); }, [load, state]);
+  return (
+    <Link to="/notifications" aria-label={count ? `Notifications, ${count} new` : 'Notifications'} className="relative -mr-2 grid size-10 place-items-center rounded-full text-blue active:bg-white/60">
+      {renderIcon(Bell, 'size-6', 1.8)}
+      {count > 0 && (
+        <span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-flag px-1 text-[10px] font-bold leading-none text-white ring-2 ring-card">
+          {count > 9 ? '9+' : count}
+        </span>
+      )}
+    </Link>
+  );
+}
+
 /**
  * Top bar, 56px, transparent so the shell sky gradient shows through.
  * Left: shop avatar (or a back chevron when `back`). Centre: the wordmark, or a plain title. Right: Search + Bell by default.
@@ -78,7 +97,7 @@ export function TopBar({ title, left, right, back = false, backTo, className }: 
   const rightNode = right !== undefined ? right : (
     <>
       <TopBarIcon icon={Search} label="Search customers" to="/khata" />
-      <TopBarIcon icon={Bell} label="Reminders" to="/reminders" className="-mr-2" />
+      <NotificationsBell />
     </>
   );
   return (

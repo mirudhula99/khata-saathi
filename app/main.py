@@ -17,7 +17,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import audio, clock, ledger, messaging, payments, sarvam, seed, services
+from . import audio, clock, ledger, messaging, notifications, payments, sarvam, seed, services
 from .config import STATIC_DIR, TTS_DIR, settings
 from .db import SessionLocal, get_db, init_db
 from .events import bus
@@ -218,6 +218,13 @@ def api_health():
 @app.get("/api/state")
 def api_state(db: Session = Depends(get_db)):
     return services.state_dict(db)
+
+
+@app.get("/api/notifications")
+def api_notifications(db: Session = Depends(get_db)):
+    """Tasks and alerts for the shopkeeper, derived from the ledger (see app/notifications.py). Read-only."""
+    merchant = services.get_merchant(db)
+    return notifications.build(db, merchant.id)
 
 
 @app.get("/api/stats")

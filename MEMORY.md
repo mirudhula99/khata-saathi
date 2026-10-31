@@ -43,6 +43,7 @@ Shanthi Stores, 20 customers. Exactly 3 owe: Ramesh (Gandhi Street) ₹800 for 4
 - Khata list: chips Pending · Settled · All, 8 rows then "Show N more", search across everyone. Settled rows show name and note only.
 - Customer page: settled customers get one quiet "Paid up" line instead of a hero amount; history shows 5 entries then "Show 5 more".
 - Reminders page: clean title, "How it works" reveals the guardrails, each row shows the actual message text.
+- Notifications (the bell, `/notifications`, `GET /api/notifications`, `app/notifications.py`): derived from the ledger, nothing stored. "Needs you" tasks pinned on top (flagged entry, silent after reminders, can't remind: no WhatsApp / STOP / paused), then events newest first: money in (Paytm verified, cash noted, "settled up"), reminders sent and due, customers joined or added. Filters: All, Needs you, Money in, Reminders, Customers. Bell badge = open tasks + unseen events; "seen" is per device in localStorage. Reminders tab = outbound schedule; bell = inbound alerts.
 - Not Splitwise: no split options, no green palette, no friends list as home. Paytm look: sky gradient header, white shadow cards, navy titles, sky-blue pills, 4-column line-icon grids.
 - Copy never says overdue, defaulter, debt or split. Buttons are verbs.
 

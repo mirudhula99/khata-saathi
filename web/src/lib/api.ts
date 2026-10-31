@@ -1,6 +1,6 @@
 // Typed client for the FastAPI routes in app/main.py. Same-origin in the built app; proxied to :8000 in `npm run dev`.
 import type {
-  ClockInfo, CommandResponse, CustomerDetail, CustomerPatch, CustomerView, Health, State, Stats,
+  ClockInfo, CommandResponse, CustomerDetail, CustomerPatch, CustomerView, Health, State, Stats, Notifications,
 } from './types';
 
 type Method = 'GET' | 'POST' | 'PATCH';
@@ -24,6 +24,7 @@ export const api = {
   health: () => request<Health>('/api/health'),
   state: () => request<State>('/api/state'),
   stats: () => request<Stats>('/api/stats'),
+  notifications: () => request<Notifications>('/api/notifications'),
   patchMerchant: (body: { language?: string; shop_name?: string; phone?: string }) => request<{ ok: true }>('/api/merchant', { method: 'PATCH', body }),
 
   // Understand: text or a recording → read-back (pending) or an answer.

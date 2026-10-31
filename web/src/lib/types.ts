@@ -106,6 +106,23 @@ export interface CommandResponse {
   done: { type: string; entry_id?: number; customer_id?: number } | null;
 }
 
+/** GET /api/notifications: tasks and alerts derived from the ledger. */
+export type NotificationCategory = 'action' | 'payments' | 'reminders' | 'customers';
+export interface Notification {
+  id: string;
+  kind: string;
+  category: NotificationCategory;
+  customer_id: number | null;
+  customer_name: string | null;
+  title: string;
+  body: string;
+  amount: number | null;
+  at: string;
+  urgent: boolean;
+  action: { label: string; to: string } | null;
+}
+export interface Notifications { items: Notification[]; counts: Partial<Record<NotificationCategory, number>>; now: string }
+
 /** GET /api/stats: numbers for the home-screen charts. Rupees. */
 export interface Stats {
   week: { days: { date: string; label: string; given: number; received: number }[]; given: number; received: number };

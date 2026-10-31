@@ -10,6 +10,7 @@ import { KhataPage } from '@/pages/KhataPage';
 import { CustomerDetailPage } from '@/pages/CustomerDetailPage';
 import { SettleUpPage } from '@/pages/SettleUpPage';
 import { RemindersPage } from '@/pages/RemindersPage';
+import { NotificationsPage } from '@/pages/NotificationsPage';
 import { AccountPage } from '@/pages/AccountPage';
 import { NotFound } from '@/pages/NotFound';
 import { useKhata } from '@/store/useKhata';
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="/khata/:id" element={<CustomerDetailPage />} />
         <Route path="/khata/:id/settle" element={<SettleUpPage />} />
         <Route path="/reminders" element={<RemindersPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/account" element={<AccountPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
