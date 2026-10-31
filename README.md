@@ -136,12 +136,12 @@ WhatsApp only delivers free-form and button messages to people who messaged your
 
 ## Deploy on Fly.io
 
-The repo has a `Dockerfile` (Python + ffmpeg, serves the prebuilt `static/app`) and a `fly.toml` (Mumbai, one always-on machine, a volume for the database). One-time setup:
+The repo has a `Dockerfile` (Python + ffmpeg, serves the prebuilt `static/app`) and a `fly.toml` (Singapore, nearest to India; one always-on machine, a volume for the database). One-time setup:
 
 ```sh
 fly auth login
 fly launch --copy-config --no-deploy        # pick a free app name if "khata-saathi" is taken
-fly volumes create khata_data --region bom --size 1
+fly volumes create khata_data --region sin --size 1
 KEY=$(openssl rand -hex 16); echo "Merchant key: $KEY"   # note it down
 fly secrets set SARVAM_API_KEY=... \
   MERCHANT_KEY=$KEY \

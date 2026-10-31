@@ -1,6 +1,6 @@
 # Fly.io deploy. First time: fly launch --copy-config --no-deploy, then see README "Deploy on Fly.io".
 app = "khata-saathi"
-primary_region = "bom"
+primary_region = "sin"
 
 [build]
 
