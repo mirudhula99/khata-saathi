@@ -305,3 +305,5 @@ button { cursor: pointer; }
 .wa-action:disabled { color: #9AA5A1; cursor: default; }
 .wa-action.attention { background: rgba(14, 90, 71, .06); }
 .bubble.in .wa-actions { display: none; }
+/* Full-width action rows: a tint only, no pulsing ring (the ring reads as grey bars across the card). */
+.wa-action.attention::after { animation: none; display: none; }
