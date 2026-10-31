@@ -1,5 +1,6 @@
 """Khata Saathi API and pages. Run: uvicorn app.main:app --reload --port 8000"""
 import asyncio
+import time
 import hmac
 import io
 import json
@@ -21,7 +22,7 @@ from . import audio, clock, ledger, messaging, notifications, payments, sarvam, 
 from .config import STATIC_DIR, TTS_DIR, settings
 from .db import SessionLocal, get_db, init_db
 from .events import bus
-from .i18n import norm_lang
+from .i18n import norm_lang, say
 from .models import Customer, Merchant, PaymentLink
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -200,6 +201,7 @@ class CustomerPatch(BaseModel):
     language: str | None = None
     consent: str | None = None
     reminders_paused: bool | None = None
+    credit_limit: int | None = None  # rupees; null or 0 removes the limit
     reminder_note: str | None = None
 
 
@@ -328,6 +330,28 @@ def api_customer_patch(customer_id: int, body: CustomerPatch, db: Session = Depe
 def api_reminder_preview(customer_id: int, db: Session = Depends(get_db)):
     """The next reminder's text for this customer (default sentence + merchant's note + STOP line), link as a placeholder."""
     return services.reminder_preview(db, customer_id)
+
+
+@app.delete("/api/customers/{customer_id}")
+def api_customer_delete(customer_id: int, db: Session = Depends(get_db)):
+    """Remove a customer with nothing in the khata (for example a spam join). Customers with history stay."""
+    return services.delete_customer(db, customer_id)
+
+
+@app.post("/api/customers/{customer_id}/statement")
+def api_statement(customer_id: int, db: Session = Depends(get_db)):
+    """WhatsApp the customer their recent entries, balance and a payment link."""
+    return services.send_statement(db, customer_id)
+
+
+@app.get("/api/today")
+def api_today(db: Session = Depends(get_db)):
+    """Today's totals for the home card, with the sentence Saathi speaks in the merchant's language."""
+    merchant = services.get_merchant(db)
+    summary = ledger.today_summary(db, merchant.id)
+    lang = merchant.language
+    return {**summary, "lang": lang, "text": say(lang, "today_summary", False, **summary),
+            "speak_text": say(lang, "today_summary", True, **summary)}
 
 
 @app.post("/api/customers/{customer_id}/remind")
@@ -497,8 +521,24 @@ def api_join_info(merchant_id: int, db: Session = Depends(get_db)):
     return {"shop": merchant.shop_name, "language": merchant.language}
 
 
+# The Join page is public, so joins are rate-limited per network: a real customer joins once.
+JOIN_LIMIT, JOIN_WINDOW_SECONDS = 5, 3600
+_join_times: dict[str, list[float]] = {}
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for", "").split(",")[0]
+    return forwarded.strip() or (request.client.host if request.client else "unknown")
+
+
 @app.post("/api/join/{merchant_id}")
-def api_join(merchant_id: int, body: JoinIn, db: Session = Depends(get_db)):
+def api_join(merchant_id: int, body: JoinIn, request: Request, db: Session = Depends(get_db)):
+    now = time.time()
+    ip = _client_ip(request)
+    recent = [t for t in _join_times.get(ip, []) if now - t < JOIN_WINDOW_SECONDS]
+    if len(recent) >= JOIN_LIMIT:
+        raise HTTPException(429, "Too many sign-ups from this network. Please ask the shop.")
+    _join_times[ip] = [*recent, now]
     if not body.consent:
         raise HTTPException(400, "Tick the box to agree to updates and reminders.")
     if not body.name.strip():

@@ -27,6 +27,10 @@ export interface Customer {
   reminders_paused: boolean;
   /** Merchant's own line added to this customer's reminders (the link and STOP line are always appended). */
   reminder_note: string | null;
+  /** Udhaar limit in rupees; going over it makes Saathi warn before saving. */
+  credit_limit: number | null;
+  /** "qr" when they added themselves through the public Join page. */
+  origin: string | null;
   balance: number;
 }
 
@@ -68,7 +72,7 @@ export interface CustomerDetail extends Customer {
   next_reminder_at: string | null;
 }
 
-export type PendingKind = 'add_credit' | 'record_repayment' | 'cash_sale' | 'request_payment';
+export type PendingKind = 'add_credit' | 'record_repayment' | 'cash_sale' | 'request_payment' | 'undo';
 /** services.pending_dict: a parsed command waiting for the merchant's yes. */
 export interface Pending {
   id: number;
@@ -82,6 +86,8 @@ export interface Pending {
   customer: Customer | null;
   new_customer_name: string | null;
   options: Customer[];
+  /** New udhaar would take the customer over their credit limit (the read-back says so). */
+  over_limit: boolean;
 }
 
 export interface Parsed {
@@ -171,6 +177,7 @@ export interface MerchantEvent {
 }
 
 export interface CustomerPatch {
+  credit_limit?: number | null;
   name?: string;
   balance?: number; // what the customer owes now; the server books the difference as an adjustment
   phone?: string | null;
@@ -179,4 +186,15 @@ export interface CustomerPatch {
   consent?: Consent | null;
   reminders_paused?: boolean | null;
   reminder_note?: string | null;
+}
+
+/** GET /api/today: today's totals and Saathi's sentence for them in the merchant's language. */
+export interface Today {
+  sales: number;
+  given: number;
+  collected: number;
+  payers: number;
+  lang: string;
+  text: string;
+  speak_text: string;
 }

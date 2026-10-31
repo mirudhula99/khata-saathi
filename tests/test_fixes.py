@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app import clock, seed  # noqa: E402
 from app.config import settings  # noqa: E402
+from app import main as main_module  # noqa: E402
 from app.main import app  # noqa: E402
 from app.understand import ParsedCommand, validate  # noqa: E402
 
@@ -36,6 +37,7 @@ class GuardrailTests(unittest.TestCase):
 
     def setUp(self):
         seed.reset_and_seed()
+        main_module._join_times.clear()  # the join rate limit is per process
         self.customers = {f"{c['name']}|{c['note']}": c for c in self.client.get("/api/state").json()["customers"]}
 
     def say(self, text: str) -> dict:
@@ -247,6 +249,149 @@ class GuardrailTests(unittest.TestCase):
         self.assertEqual(self.client.patch(f"/api/customers/{ramesh}", json={"balance": -5}).status_code, 400)
         r = self.client.patch(f"/api/customers/{ramesh}", json={"balance": 0}).json()
         self.assertEqual((r["balance"], r["next_reminder_at"]), (0, None))
+
+
+    # ---------------------------------------------------------------- undo, credit limit, today, statement
+    def confirm(self, reply: dict) -> dict:
+        return self.client.post(f"/api/actions/{reply['pending']['id']}/confirm", json={}).json()
+
+    def test_undo_removes_the_last_entry_after_a_yes(self):
+        lakshmi = self.customers["Lakshmi|Gandhi Nagar"]["id"]
+        self.confirm(self.say("Lakshmi ku 150 udhaar"))
+        reply = self.say("undo")
+        self.assertEqual((reply["pending"]["kind"], reply["pending"]["amount"]), ("undo", 150))
+        self.assertIn("Remove Lakshmi's ₹150 udhaar", reply["reply_text"])
+        self.assertEqual(self.balance(lakshmi), 150)  # nothing removed before the yes
+        done = self.confirm(reply)
+        self.assertIn("Removed. Lakshmi", done["reply_text"])
+        self.assertEqual(self.balance(lakshmi), 0)
+        entries = self.client.get(f"/api/customers/{lakshmi}/ledger").json()["entries"]
+        self.assertEqual([e["type"] for e in entries[:2]], ["reversal", "credit"])  # history kept
+        self.assertIsNone(self.say("undo")["pending"])  # seeded and removed entries can't be undone
+
+    def test_undo_for_a_named_customer_and_never_a_link_payment(self):
+        ravi = self.customers["Ravi|"]["id"]
+        self.confirm(self.say("Ravi paid 90 cash"))
+        self.confirm(self.say("Lakshmi ku 150 udhaar"))
+        reply = self.say("Ravi ka last entry hatao")
+        self.assertEqual(reply["pending"]["customer"]["id"], ravi)
+        reply = self.say("Ask Ravi for 100")
+        self.confirm(reply)
+        link = self.client.get(f"/api/customer-view/{ravi}").json()["messages"][-1]["link_url"]
+        self.client.post(f"/api/pay/{link.rsplit('/', 1)[-1]}/simulate", json={})
+        reply = self.say("Ravi ka last entry hatao")  # the newest is the verified payment: skipped
+        self.assertEqual(reply["pending"]["amount"], 90)
+
+    def test_credit_limit_warns_and_stops_one_tap_saving(self):
+        ramesh = self.customers["Ramesh|Gandhi Street"]["id"]  # owes 800
+        self.client.patch(f"/api/customers/{ramesh}", json={"credit_limit": 1000})
+        reply = self.client.post("/api/command", json={"text": "Ramesh 300 udhaar", "lang": "en-IN",
+                                                       "customer_id": ramesh}).json()
+        self.assertTrue(reply["pending"]["over_limit"])
+        self.assertIn("over the ₹1,000 limit", reply["reply_text"])
+        reply = self.client.post("/api/command", json={"text": "Ramesh 100 udhaar", "lang": "en-IN",
+                                                       "customer_id": ramesh}).json()
+        self.assertFalse(reply["pending"]["over_limit"])  # 900 is within the limit
+        r = self.client.patch(f"/api/customers/{ramesh}", json={"credit_limit": None}).json()
+        self.assertIsNone(r["credit_limit"])
+
+    def test_today_summary(self):
+        self.confirm(self.say("Lakshmi ku 150 udhaar"))
+        self.confirm(self.say("Ravi paid 90 cash"))
+        today = self.client.get("/api/today").json()
+        self.assertEqual((today["given"], today["collected"], today["payers"]), (150, 90, 1))
+        self.assertIn("udhaar given ₹150", today["text"])
+        self.assertIn("collected", self.say("How was today?")["reply_text"])
+
+    def test_statement_goes_to_the_customer_with_a_pay_link(self):
+        ravi = self.customers["Ravi|"]["id"]  # owes 290
+        self.assertEqual(self.client.post(f"/api/customers/{ravi}/statement").status_code, 200)
+        msg = self.client.get(f"/api/customer-view/{ravi}").json()["messages"][-1]
+        self.assertEqual(msg["kind"], "statement")
+        self.assertIn("₹290", msg["body"])
+        self.assertTrue(msg["link_url"])
+        arjun = self.customers["Arjun|"]["id"]  # never agreed to messages
+        self.assertEqual(self.client.post(f"/api/customers/{arjun}/statement").status_code, 400)
+
+
+    # ---------------------------------------------------------------- loophole fixes
+    def test_shop_cannot_override_a_customers_stop(self):
+        ravi = self.customers["Ravi|"]["id"]
+        self.client.post(f"/api/customer-view/{ravi}/reply", json={"text": "STOP"})
+        r = self.client.patch(f"/api/customers/{ravi}", json={"consent": "granted"})
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("only they can turn messages back on", r.json()["detail"])
+        self.client.post(f"/api/customer-view/{ravi}/reply", json={"text": "START"})  # the customer can
+        self.assertEqual(self.client.get(f"/api/customers/{ravi}").json()["consent"], "granted")
+
+    def test_raising_a_balance_asks_the_customer_who_can_flag_it(self):
+        suresh = self.customers["Suresh|"]["id"]  # owes 150
+        self.client.patch(f"/api/customers/{suresh}", json={"balance": 400})
+        msg = self.client.get(f"/api/customer-view/{suresh}").json()["messages"][-1]
+        self.assertIn("₹250", msg["body"])
+        self.assertEqual([b["id"].split(":")[0] for b in msg["buttons"]], ["ack", "dispute"])
+        self.client.post(f"/api/customer-view/{suresh}/reply", json={"button_id": msg["buttons"][1]["id"]})
+        self.assertEqual(self.balance(suresh), 150)  # the increase is held back until the shop checks it
+        ravi = self.customers["Ravi|"]["id"]  # a decrease isn't sent to the customer
+        n = len(self.client.get(f"/api/customer-view/{ravi}").json()["messages"])
+        self.client.patch(f"/api/customers/{ravi}", json={"balance": 100})
+        self.assertEqual(len(self.client.get(f"/api/customer-view/{ravi}").json()["messages"]), n)
+
+    def test_balance_cannot_change_while_an_entry_is_flagged(self):
+        kumaran = self.customers["Kumaran|Bus stand"]["id"]
+        self.confirm(self.say("Kumaran ku 200 udhaar"))
+        msg = [m for m in self.client.get(f"/api/customer-view/{kumaran}").json()["messages"] if m["kind"] == "credit_note"][-1]
+        self.client.post(f"/api/customer-view/{kumaran}/reply", json={"button_id": msg["buttons"][1]["id"]})
+        r = self.client.patch(f"/api/customers/{kumaran}", json={"balance": 200})
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("flagged an entry", r.json()["detail"])
+
+    def test_paid_udhaar_cannot_be_undone(self):
+        lakshmi = self.customers["Lakshmi|Gandhi Nagar"]["id"]
+        self.confirm(self.say("Lakshmi ku 150 udhaar"))
+        self.confirm(self.say("Ask Lakshmi for 150"))
+        link = self.client.get(f"/api/customer-view/{lakshmi}").json()["messages"][-1]["link_url"]
+        self.client.post(f"/api/pay/{link.rsplit('/', 1)[-1]}/simulate", json={})
+        reply = self.say("undo")
+        self.assertIsNone(reply["pending"])
+        self.assertIn("already paid", reply["reply_text"])
+        self.assertEqual(self.balance(lakshmi), 0)
+
+    def test_joins_are_rate_limited_marked_and_removable(self):
+        stranger = TestClient(app)
+        codes = [stranger.post("/api/join/1", json={"name": f"Spam{i}", "phone": f"98765000{i:02d}",
+                                                    "consent": True}).status_code for i in range(6)]
+        self.assertEqual(codes, [200] * 5 + [429])
+        spam = [c for c in self.client.get("/api/state").json()["customers"] if c["name"] == "Spam0"][0]
+        self.assertEqual(spam["origin"], "qr")
+        self.assertEqual(self.client.delete(f"/api/customers/{spam['id']}").status_code, 200)
+        r = self.client.delete(f"/api/customers/{self.customers['Ravi|']['id']}")  # has history
+        self.assertEqual(r.status_code, 400)
+
+    def test_reminder_line_must_stay_polite(self):
+        ravi = self.customers["Ravi|"]["id"]
+        for line in ("Pay or I will call the police", "चोर हो तुम", "Last warning!"):
+            self.assertEqual(self.client.patch(f"/api/customers/{ravi}", json={"reminder_note": line}).status_code, 400)
+        ok = self.client.patch(f"/api/customers/{ravi}", json={"reminder_note": "Thank you, fir milte hain"})
+        self.assertEqual(ok.status_code, 200)
+
+    def test_balance_cannot_be_set_over_the_credit_limit(self):
+        ramesh = self.customers["Ramesh|Gandhi Street"]["id"]  # owes 800
+        self.client.patch(f"/api/customers/{ramesh}", json={"credit_limit": 1000})
+        r = self.client.patch(f"/api/customers/{ramesh}", json={"balance": 1200})
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("credit limit", r.json()["detail"])
+        self.assertEqual(self.client.patch(f"/api/customers/{ramesh}", json={"balance": 900}).status_code, 200)
+
+    def test_manual_messages_respect_quiet_hours(self):
+        ravi = self.customers["Ravi|"]["id"]
+        settings.quiet_hours = "0-0"  # every hour is outside the window
+        try:
+            r = self.client.post(f"/api/customers/{ravi}/remind").json()
+            self.assertIn("scheduled_for", r)  # queued for the morning, not sent
+            self.assertEqual(self.client.post(f"/api/customers/{ravi}/statement").status_code, 400)
+        finally:
+            settings.quiet_hours = ""
 
 
 if __name__ == "__main__":

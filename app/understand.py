@@ -20,7 +20,7 @@ log = logging.getLogger("khata.understand")
 
 Intent = Literal[
     "add_credit", "record_repayment", "cash_sale", "request_payment",
-    "query", "confirm", "reject", "correct", "unknown",
+    "query", "confirm", "reject", "correct", "undo", "unknown",
 ]
 
 
@@ -84,6 +84,8 @@ Intents:
 - confirm: yes / haan / aamaa / houdu / avunu / sari / ok.
 - reject: no / nahi / illa / beda / vaddu / cancel.
 - correct: the shopkeeper corrects the amount of the waiting entry ("no, 180").
+- undo: remove the last saved entry ("undo", "galat ho gaya, hatao", "delete the last entry", "Lakshmi ka last entry hatao").
+  customer_name only if a customer was named.
 - unknown: anything else.
 
 Rules:
@@ -115,7 +117,7 @@ RESPONSE_FORMAT = {
             "properties": {
                 "intent": {"type": "string", "enum": [
                     "add_credit", "record_repayment", "cash_sale", "request_payment",
-                    "query", "confirm", "reject", "correct", "unknown"]},
+                    "query", "confirm", "reject", "correct", "undo", "unknown"]},
                 "customer_name": {"type": ["string", "null"]},
                 "amount": {"type": ["integer", "null"]},
                 "items": {"type": "array", "items": {"type": "string"}},
@@ -145,6 +147,9 @@ REPAY_PATTERNS = [r"\bpaid\b", r"\bgave\b", r"\breturned\b", r"\bdiya\b", r"\bdi
                   # Native script: Hindi, Tamil, Kannada, Telugu
                   r"दिया", r"दिए", r"लौटा", r"जमा", r"चुका", r"கொடுத்த", r"குடுத்த", r"கட்டின", r"திருப்பி",
                   r"ಕೊಟ್ಟ", r"ಪಾವತಿ", r"ವಾಪಸ್", r"ಹಿಂತಿರುಗಿ", r"ఇచ్చా", r"ఇచ్చి", r"చెల్లించ", r"కట్టా"]
+# "Undo / remove the last entry": Hindi, Tamil, Kannada and Telugu words for remove, plus English.
+UNDO_PATTERNS = [r"\bundo\b", r"\blast entry\b", r"\b(remove|delete|cancel) (the )?last\b", r"\bhata ?o\b",
+                 r"\bhata do\b", r"\bmitao\b", r"हटाओ", r"हटा दो", r"मिटाओ", r"நீக்கு", r"ತೆಗೆ", r"తీసేయ్", r"తొలగించు"]
 REQUEST_PATTERNS = [r"\bask\b", r"\brequest\b", r"\blink\b", r"\bremind\b", r"anupp", r"\bbhej", r"kalis",
                     r"pamp", r"yaad dila"]
 CREDIT_PATTERNS = [r"udh?aa?r", r"\bcredit\b", r"\bkadan\b", r"\bsaa?la\b", r"\bappu\b", r"\bkhata\b",
@@ -228,7 +233,7 @@ def _items(text: str) -> list[str]:
 # ------------------------------------------------------------------ parsers
 def quick_yes_no(text: str) -> ParsedCommand | None:
     tokens = _tokens(text)
-    if not tokens or len(tokens) > 3:
+    if not tokens or len(tokens) > 3 or _has(UNDO_PATTERNS, (text or "").lower()):  # "cancel last" is undo, not "no"
         return None
     nums = all_numbers(text)
     if tokens[0] in NO and len(nums) == 1:
@@ -250,6 +255,8 @@ def rule_parse(text: str, known_names: list[str]) -> ParsedCommand:
     name = match_known_name(text, known_names) or _guess_name(text)
     mode = "cash" if _has(CASH_PATTERNS, low) else ("paytm" if re.search(r"paytm|\bupi\b", low) else None)
 
+    if _has(UNDO_PATTERNS, low):
+        return ParsedCommand(intent="undo", customer_name=match_known_name(text, known_names), source="rules")
     if "?" in text or (tokens & QUESTION_TOKENS and amount is None):
         return ParsedCommand(intent="query", question=text, source="rules")
     if _has(REQUEST_PATTERNS, low) and name:

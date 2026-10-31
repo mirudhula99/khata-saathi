@@ -22,7 +22,7 @@ export function PendingCard() {
   const who = pending.customer?.name ?? pending.new_customer_name ?? '';
   const isNew = !pending.customer && Boolean(pending.new_customer_name);
   const detail = [t(KIND_LABEL[pending.kind] ?? 'Entry'), who ? (isNew ? t('{name} (new customer)', { name: who }) : who) : null, pending.amount != null ? inr(pending.amount) : null, pending.items.length ? pending.items.join(', ') : null, pending.payment_mode === 'cash' ? t('in cash') : null].filter(Boolean).join(' · ');
-  const saveLabel = pending.kind === 'request_payment' ? t('Send link') : t('Save');
+  const saveLabel = pending.kind === 'request_payment' ? t('Send link') : pending.kind === 'undo' ? t('Remove') : t('Save');
 
   return (
     <SaathiCard
@@ -44,7 +44,7 @@ export function PendingCard() {
       ) : (
         <>
           <PaytmButton variant="primary" icon={Check} disabled={loading} onClick={() => void confirm()} className={cn(!loading && 'ks-attention')}>{saveLabel}</PaytmButton>
-          {pending.kind !== 'request_payment' && <PaytmButton variant="outline" icon={PenLine} disabled={loading} onClick={() => setEditing(true)}>{t('Change amount')}</PaytmButton>}
+          {pending.kind !== 'request_payment' && pending.kind !== 'undo' && <PaytmButton variant="outline" icon={PenLine} disabled={loading} onClick={() => setEditing(true)}>{t('Change amount')}</PaytmButton>}
           <PaytmButton variant="ghost" icon={X} disabled={loading} onClick={() => void reject()} className="px-3">{t('Cancel')}</PaytmButton>
         </>
       )}

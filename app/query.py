@@ -43,6 +43,8 @@ TOOLS = [
         "parameters": {"type": "object", "properties": {}, "required": []}}},
 ]
 
+# Native-script "today" (Hindi, Tamil, Kannada, Telugu): matched as substrings, since \w splits on vowel signs.
+TODAY_NATIVE = ("आज", "இன்று", "இன்னிக்கு", "ಇಂದು", "ಇವತ್ತು", "ఈరోజు", "ఈ రోజు")
 TODAY_WORDS = {"today", "aaj", "indru", "inniki", "ivattu", "eeroju", "ivaththu"}
 
 
@@ -128,7 +130,7 @@ def fallback_answer(db: Session, merchant: Merchant, question: str, lang: str, s
                            balance=stats["balance"], days=stats["oldest_unpaid_days"])
             return say(lang, "customer_balance", spoken, name=customer.display_name, balance=stats["balance"])
     words = set(re.findall(r"\w+", question.lower()))
-    if words & TODAY_WORDS:
+    if words & TODAY_WORDS or any(w in question for w in TODAY_NATIVE):
         return say(lang, "today_summary", spoken, **ledger.today_summary(db, merchant.id))
     rows = ledger.outstanding(db, merchant.id)
     if not rows:

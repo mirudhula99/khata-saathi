@@ -1,9 +1,9 @@
 // Typed client for the FastAPI routes in app/main.py. Same-origin in the built app; proxied to :8000 in `npm run dev`.
 import type {
-  ClockInfo, CommandResponse, CustomerDetail, CustomerPatch, CustomerView, Health, State, Stats, Notifications,
+  ClockInfo, CommandResponse, Today, CustomerDetail, CustomerPatch, CustomerView, Health, State, Stats, Notifications,
 } from './types';
 
-type Method = 'GET' | 'POST' | 'PATCH';
+type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
 async function request<T>(path: string, opts: { method?: Method; body?: unknown; form?: FormData } = {}): Promise<T> {
   const init: RequestInit = { method: opts.method ?? (opts.body !== undefined || opts.form ? 'POST' : 'GET'), headers: {} };
@@ -53,7 +53,11 @@ export const api = {
   customerView: (id: number) => request<CustomerView>(`/api/customer-view/${id}`),
 
   // Act
-  remindNow: (id: number) => request<{ ok: true }>(`/api/customers/${id}/remind`, { body: {} }),
+  sendStatement: (id: number) => request<{ ok: true }>(`/api/customers/${id}/statement`, { body: {} }),
+  today: () => request<Today>('/api/today'),
+  // scheduled_for: outside reminder hours the reminder is queued for the morning instead of sent.
+  remindNow: (id: number) => request<{ ok: true; scheduled_for?: string }>(`/api/customers/${id}/remind`, { body: {} }),
+  deleteCustomer: (id: number) => request<{ ok: true; name: string }>(`/api/customers/${id}`, { method: 'DELETE' }),
   tts: (text: string, lang: string) => request<{ audio_url: string | null }>(`/api/tts?lang=${encodeURIComponent(lang)}&text=${encodeURIComponent(text)}`),
 
   // Demo controls (DEMO_MODE=true)

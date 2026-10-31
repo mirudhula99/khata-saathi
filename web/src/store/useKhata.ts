@@ -35,6 +35,8 @@ interface KhataState {
   newCustomer: () => Promise<void>;
   dismiss: () => void;
   remindNow: (customerId: number) => Promise<void>;
+  sendStatement: (customerId: number) => Promise<void>;
+  removeCustomer: (customerId: number) => Promise<boolean>;
   patchCustomer: (customerId: number, patch: CustomerPatch) => Promise<boolean>;
   resolveDispute: (entryId: number, action: 'keep' | 'remove') => Promise<void>;
   fastForward: (days?: number) => Promise<void>;
@@ -115,7 +117,8 @@ export const useKhata = create<KhataState>((set, get) => {
         const res = await api.command(t, get().lang, expect.customerId);
         const p = res.pending;
         const sameCustomer = expect.customerId != null ? p?.customer?.id === expect.customerId : p != null && !p.customer;
-        if (p && p.state === 'awaiting_confirm' && p.amount === expect.amount && sameCustomer) return api.confirm(p.id, get().lang);
+        // Over the customer's credit limit: show the warning read-back instead of saving straight away.
+        if (p && p.state === 'awaiting_confirm' && p.amount === expect.amount && sameCustomer && !p.over_limit) return api.confirm(p.id, get().lang);
         return res;
       });
     },
@@ -130,9 +133,30 @@ export const useKhata = create<KhataState>((set, get) => {
 
     remindNow: async (customerId) => {
       try {
-        await api.remindNow(customerId);
+        const r = await api.remindNow(customerId);
         const c = get().state?.customers.find((x) => x.id === customerId);
-        toast.success(tNow('Reminder sent'), { description: c ? tNow('{name} · {amount} · with a payment link', { name: c.name, amount: inr(c.balance) }) : undefined });
+        if (r.scheduled_for) {
+          const at = new Date(r.scheduled_for).toLocaleString('en-IN', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+          toast.success(tNow('Reminder scheduled'), { description: tNow('Outside reminder hours, so it goes to {name} at {at}.', { name: c?.name ?? tNow('them'), at }) });
+        } else {
+          toast.success(tNow('Reminder sent'), { description: c ? tNow('{name} · {amount} · with a payment link', { name: c.name, amount: inr(c.balance) }) : undefined });
+        }
+        await get().refresh();
+      } catch (e) { toast.error(errMsg(e)); }
+    },
+    removeCustomer: async (customerId) => {
+      try {
+        const r = await api.deleteCustomer(customerId);
+        toast.success(tNow('Customer removed'), { description: r.name });
+        await get().refresh();
+        return true;
+      } catch (e) { toast.error(errMsg(e)); return false; }
+    },
+    sendStatement: async (customerId) => {
+      try {
+        await api.sendStatement(customerId);
+        const c = get().state?.customers.find((x) => x.id === customerId);
+        toast.success(tNow('Statement sent'), { description: c ? (c.balance > 0 ? tNow('{name} · {amount} due, with a payment link', { name: c.name, amount: inr(c.balance) }) : tNow('{name} · nothing due', { name: c.name })) : undefined });
         await get().refresh();
       } catch (e) { toast.error(errMsg(e)); }
     },

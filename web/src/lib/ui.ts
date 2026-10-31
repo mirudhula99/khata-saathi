@@ -83,4 +83,5 @@ export const KIND_LABEL: Record<string, string> = {
   record_repayment: 'Payment received',
   cash_sale: 'Cash sale',
   request_payment: 'Payment link',
+  undo: 'Remove entry',
 };

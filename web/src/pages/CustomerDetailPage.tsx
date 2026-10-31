@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Bell, CheckCircle2, ChevronDown, ChevronLeft, CirclePause, CirclePlay, HandCoins, IndianRupee, Link2, PenLine, Send, ShoppingBasket, Smartphone, Undo2 } from 'lucide-react';
+import { Bell, CheckCircle2, FileText, ChevronDown, ChevronLeft, CirclePause, CirclePlay, HandCoins, IndianRupee, Link2, PenLine, Send, ShoppingBasket, Smartphone, Undo2 } from 'lucide-react';
 
 /** History rows shown before a "Show N more" step, so a regular's twenty entries don't make the screen endless. */
 const HISTORY_PAGE = 5;
@@ -28,7 +28,7 @@ export function CustomerDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
   const cid = Number(id);
   const navigate = useNavigate();
-  const { state, doneSeq, remindNow, patchCustomer, resolveDispute } = useKhata();
+  const { state, doneSeq, remindNow, sendStatement, patchCustomer, resolveDispute } = useKhata();
   const [c, setC] = useState<CustomerDetail | null>(null);
   const [err, setErr] = useState('');
   const [historyShown, setHistoryShown] = useState(HISTORY_PAGE);
@@ -95,7 +95,7 @@ export function CustomerDetailPage() {
                 <IconTile icon={Bell} label={t('Remind now')} disabled={!canRemind} onClick={() => void remindNow(c.id)} />
               </div>
               <IconTile icon={HandCoins} label={t('Record payment')} disabled={c.balance <= 0} onClick={() => navigate(`/khata/${c.id}/settle`)} />
-              <IconTile icon={Smartphone} label={t("Customer's phone")} href={`/customer?id=${c.id}`} target="_blank" />
+              <IconTile icon={FileText} label={t('Send statement')} disabled={c.consent !== 'granted'} onClick={() => void sendStatement(c.id)} />
               <IconTile
                 icon={c.reminders_paused ? CirclePlay : CirclePause}
                 label={c.reminders_paused ? t('Resume reminders') : t('Pause reminders')}
@@ -141,7 +141,8 @@ export function CustomerDetailPage() {
           <PaytmCard padded={false} title={t('WhatsApp and reminders')} subtitle={t('Polite messages from your shop, on your schedule')}>
             <PaytmRow
               title={<label htmlFor="consent" className="cursor-pointer">{t('Agreed to WhatsApp updates')}</label>}
-              right={<Switch id="consent" checked={c.consent === 'granted'} onCheckedChange={(v) => void patchCustomer(c.id, { consent: v ? 'granted' : c.consent === 'opted_out' ? 'opted_out' : 'pending' })} />}
+              sub={c.consent === 'opted_out' ? t('They replied STOP. Only they can turn it back on, by replying START.') : undefined}
+              right={<Switch id="consent" checked={c.consent === 'granted'} disabled={c.consent === 'opted_out'} onCheckedChange={(v) => void patchCustomer(c.id, { consent: v ? 'granted' : 'pending' })} />}
             />
             <PaytmRow
               title={<label htmlFor="paused" className="cursor-pointer">{t('Pause reminders')}</label>}
