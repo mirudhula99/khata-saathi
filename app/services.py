@@ -527,16 +527,44 @@ def _quiet_until(when: datetime) -> datetime | None:
 SEND_FAILED = ("failed", "no_phone")
 
 
-def reminder_text(merchant: Merchant, customer: Customer, tone: int, bal_paise: int, link: str) -> str:
-    """The full WhatsApp reminder: default sentence in the customer's language, the merchant's own note for this
-    customer (if any), then the STOP footer. The payment link lives in the default sentence and is never editable."""
+def _open_credits(db: Session, customer_id: int) -> list[LedgerEntry]:
+    """Active credits, oldest first, that are still (partly) unpaid under FIFO."""
+    entries = sorted(ledger.history(db, customer_id), key=lambda e: e.created_at)
+    paid = sum(e.amount_paise for e in entries if e.type == "repayment" and e.status == "active")
+    paid -= sum(e.amount_paise for e in entries if e.type == "reversal" and e.status == "active" and e.signed_paise > 0)
+    open_: list[LedgerEntry] = []
+    for e in entries:
+        if e.type != "credit" or e.status != "active":
+            continue
+        if paid >= e.amount_paise:
+            paid -= e.amount_paise
+        else:
+            paid = 0
+            open_.append(e)
+    return open_
+
+
+def reminder_text(db: Session, merchant: Merchant, customer: Customer, tone: int, bal_paise: int, link: str) -> str:
+    """The full WhatsApp reminder: default sentence in the customer's language, a line with what is pending
+    (total, number of entries, oldest), the merchant's own note for this customer (if any), then the STOP footer.
+    The payment link lives in the default sentence and is never editable."""
     lang = customer.language
     body = customer_text(lang, f"reminder_{tone}", name=customer.display_name, shop=merchant.shop_name,
                          balance=rupees(bal_paise), link=link)
+    open_ = _open_credits(db, customer.id)
+    if open_:
+        body += "\n" + customer_text(lang, "pending_line", balance=rupees(bal_paise), n=len(open_),
+                                     days=clock.days_since(open_[0].created_at))
     note = (customer.reminder_note or "").strip()
     if note:
         body = f"{body}\n{note}"
     return f"{body}\n{customer_text(lang, 'footer')}"
+
+
+def reminder_buttons(lang: str) -> list[dict]:
+    """The reply buttons under a reminder (WhatsApp allows three; "Pay now" is the link itself)."""
+    return [{"id": "flag:balance", "title": customer_text(lang, "btn_flag_balance")},
+            {"id": "stop", "title": customer_text(lang, "btn_stop")}]
 
 
 def reminder_preview(db: Session, customer_id: int) -> dict:
@@ -546,15 +574,26 @@ def reminder_preview(db: Session, customer_id: int) -> dict:
         raise FlowError("Customer not found.")
     merchant = db.get(Merchant, customer.merchant_id)
     bal = ledger.balance_paise(db, customer.id)
-    return {"text": reminder_text(merchant, customer, 1, bal, "[payment link]"),
+    return {"text": reminder_text(db, merchant, customer, 1, bal, "[payment link]"),
             "note": customer.reminder_note, "language": customer.language}
+
+
+def account_statement(db: Session, merchant: Merchant, customer: Customer) -> str:
+    """Reply to a customer who asks for their balance: open entries and the total, in their language."""
+    open_ = _open_credits(db, customer.id)
+    lines = "\n".join(
+        f"• {clock.to_ist(e.created_at).strftime('%d %b')}: ₹{rupees(e.amount_paise):,}" + (f" ({items_text(e.items)})" if e.items else "")
+        for e in open_[-6:]) or "• —"
+    return customer_text(customer.language, "statement", shop=merchant.shop_name, lines=lines,
+                         balance=rupees(ledger.balance_paise(db, customer.id)))
 
 
 def _send_reminder_message(db: Session, merchant: Merchant, customer: Customer, tone: int, bal_paise: int) -> Message:
     link = payments.create_link(db, merchant, customer, bal_paise)
     lang = customer.language
-    body = reminder_text(merchant, customer, tone, bal_paise, link.url)
-    msg = messaging.send(db, customer, kind="reminder", body=body, link_url=link.url)
+    body = reminder_text(db, merchant, customer, tone, bal_paise, link.url)
+    msg = messaging.send(db, customer, kind="reminder", body=body, link_url=link.url,
+                         buttons=reminder_buttons(customer.language))
     if msg.status not in SEND_FAILED:
         _notify_merchant(merchant, "reminder_sent", "reminder_sent",
                          {"name": customer.display_name, "balance": rupees(bal_paise)}, customer_id=customer.id)
@@ -677,6 +716,20 @@ def handle_customer_reply(db: Session, customer: Customer, *, button_id: str | N
     messaging.log_incoming(db, customer, label, channel)
     result = {"action": "logged"}
 
+    if button_id == "flag:balance":
+        # The customer says the pending amount itself is wrong. Pause reminders, tell the merchant, leave a marker
+        # (a cancelled Reminder row) that the Notifications screen turns into a task until a payment or a review.
+        customer.reminders_paused = True
+        cancel_reminders(db, customer.id, "balance flagged by customer")
+        db.add(Reminder(customer_id=customer.id, due_at=clock.now(), status="cancelled", note="balance flagged by customer"))
+        db.commit()
+        messaging.send(db, customer, kind="notice", body=customer_text(lang, "balance_flag_ack", shop=merchant.shop_name))
+        _notify_merchant(merchant, "dispute", "balance_flag_alert",
+                         {"name": customer.display_name, "amount": rupees(ledger.balance_paise(db, customer.id))},
+                         customer_id=customer.id)
+        return {"action": "balance_flagged"}
+    if button_id == "stop":
+        text, button_id = "STOP", None
     if button_id and ":" in button_id:
         action, _, raw_id = button_id.partition(":")
         entry = db.get(LedgerEntry, int(raw_id)) if raw_id.isdigit() else None
@@ -710,6 +763,9 @@ def handle_customer_reply(db: Session, customer: Customer, *, button_id: str | N
         elif word == "START":
             _grant_consent(db, customer)
             result = {"action": "opted_in"}
+        elif word in ("BALANCE", "BAL", "HISAB", "HISAAB", "KANAKKU", "STATEMENT"):
+            messaging.send(db, customer, kind="notice", body=account_statement(db, merchant, customer))
+            result = {"action": "statement"}
     db.commit()
     bus.publish(f"merchant:{merchant.id}", {"type": "refresh"})
     return result

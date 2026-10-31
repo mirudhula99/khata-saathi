@@ -14,10 +14,16 @@
 <body class="phone-page">
   <div class="phone">
     <header class="phone-top">
-      <h1 id="shop">Shop messages</h1>
-      <p>WhatsApp <span class="fineprint">· sandbox · no real money</span></p>
+      <div class="wa-head">
+        <span class="wa-avatar" aria-hidden="true">S</span>
+        <div class="wa-head-text">
+          <h1 id="shop">Shop messages</h1>
+          <p>Business account · WhatsApp <span class="fineprint">· sandbox · no real money</span></p>
+        </div>
+      </div>
+      <p class="wa-you">You are <strong id="whoName">…</strong></p>
       <label class="visually-hidden" for="who">Customer</label>
-      <select id="who"></select>
+      <select id="who" class="visually-hidden" tabindex="-1" aria-hidden="true"></select>
     </header>
     <main id="chat" class="chat" aria-live="polite"></main>
     <footer class="phone-foot">

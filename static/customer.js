@@ -2,6 +2,7 @@
 import { api, h } from "/static/common.js";
 
 const $ = (s) => document.querySelector(s);
+const PAY_LABEL = { "en-IN": "Pay now", "hi-IN": "अभी भुगतान करें", "kn-IN": "ಈಗ ಪಾವತಿಸಿ", "ta-IN": "இப்போது செலுத்து", "te-IN": "ఇప్పుడు చెల్లించండి" };
 const params = new URLSearchParams(location.search);
 let customerId = params.get("id");
 let view = null;
@@ -14,6 +15,9 @@ async function loadList() {
     h("option", { value: c.id, selected: String(c.id) === String(customerId) }, c.note ? `${c.name} (${c.note})` : c.name)));
   if (!customerId && customers.length) customerId = customers[0].id;
   select.value = customerId;
+  const me = customers.find((c) => String(c.id) === String(customerId));
+  $("#whoName").textContent = me ? (me.note ? `${me.name} (${me.note})` : me.name) : "";
+  $(".wa-avatar").textContent = (view?.shop || "S").trim().charAt(0).toUpperCase();
 }
 
 async function load() {
@@ -35,6 +39,7 @@ function answeredButtons() {
 
 function render() {
   $("#shop").textContent = view.shop;
+  $(".wa-avatar").textContent = (view.shop || "S").trim().charAt(0).toUpperCase();
   const optedOut = view.customer.consent === "opted_out";
   const stop = $("#stopBtn");
   stop.textContent = optedOut ? "START" : "STOP";
@@ -57,13 +62,20 @@ function render() {
     // One answer per message: once Confirm or Flag was tapped on this entry, both of its chips are spent.
     const answered = spent.get(m.id);
     const done = Boolean(m.buttons?.length && answered && m.buttons.some((b) => answered.has(b.title)));
-    return h("div", { class: `bubble ${m.direction}` },
+    // WhatsApp business layout: the text, then full-width action rows separated by hairlines.
+    // "Pay now" is the link; reply buttons (Correct / Wrong amount, Amount wrong?, STOP) post a reply.
+    const payTitle = view.customer.language && PAY_LABEL[view.customer.language] || "Pay now";
+    const rows = [];
+    if (m.link_url) rows.push(h("a", { class: `wa-action wa-link${m.id === lastPay ? " attention" : ""}`, href: m.link_url }, "↗ " + payTitle));
+    for (const b of m.buttons || []) {
+      const stop = b.id === "stop";
+      rows.push(h("button", { class: `wa-action${m.id === lastAsk && !done && !stop ? " attention" : ""}`, type: "button",
+        disabled: stop ? optedOut : done, onclick: () => reply({ button_id: b.id, text: b.title }) }, b.title));
+    }
+    return h("div", { class: `bubble ${m.direction}${rows.length ? " has-actions" : ""}` },
       body,
-      m.link_url ? h("a", { class: `btn btn-paid pay${m.id === lastPay ? " attention" : ""}`, href: m.link_url }, "Pay now") : null,
-      m.buttons?.length ? h("div", { class: "chips" }, ...m.buttons.map((b) =>
-        h("button", { class: `chip${m.id === lastAsk && !done ? " attention" : ""}`, type: "button", disabled: done,
-          onclick: () => reply({ button_id: b.id, text: b.title }) }, b.title))) : null,
-      h("time", {}, m.status === "failed" ? `${time}, not delivered` : time));
+      h("time", {}, m.status === "failed" ? `${time}, not delivered` : time),
+      rows.length ? h("div", { class: "wa-actions" }, ...rows) : null);
   }));
   window.scrollTo({ top: document.body.scrollHeight });
 }

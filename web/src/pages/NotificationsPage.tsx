@@ -18,6 +18,7 @@ type Filter = 'all' | NotificationCategory;
 
 const ICON: Record<string, { icon: LucideIcon; tone: string }> = {
   flagged: { icon: Flag, tone: 'bg-flag/10 text-flag' },
+  balance_flagged: { icon: Flag, tone: 'bg-flag/10 text-flag' },
   unpaid_after_reminder: { icon: BellRing, tone: 'bg-owed/10 text-owed' },
   no_consent: { icon: PhoneOff, tone: 'bg-owed/10 text-owed' },
   opted_out: { icon: MessageCircleOff, tone: 'bg-chip text-ink-2' },

@@ -77,10 +77,22 @@ def build(db: Session, merchant_id: int) -> dict:
     for e in repayments:
         last_paid.setdefault(e.customer_id, e.created_at)
 
+    # "Amount wrong?" tapped on a reminder leaves a cancelled Reminder row with this note (services.handle_customer_reply).
+    flagged_balance = {}
+    for r in db.scalars(select(Reminder).where(Reminder.status == "cancelled", Reminder.note == "balance flagged by customer")
+                        .order_by(Reminder.due_at.desc())):
+        flagged_balance.setdefault(r.customer_id, r.due_at)
+
     gap = timedelta(days=settings.reminder_gap_days)
     for cid, c in customers.items():
         owed = bal(cid)
         if owed <= 0:
+            continue
+        flagged_at = flagged_balance.get(cid)
+        if flagged_at and not (last_paid.get(cid) and last_paid[cid] > flagged_at):
+            add("balance_flagged", "action", c, f"{c.display_name} says the amount is wrong",
+                f"₹{owed:,} pending. Reminders are paused. Check their record, then call or resume.",
+                flagged_at, amount=owed, urgent=True, action="Open")
             continue
         if c.consent == "pending":
             add("no_consent", "action", c, f"Can't remind {c.display_name}",

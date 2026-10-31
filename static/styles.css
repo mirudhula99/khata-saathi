@@ -291,3 +291,17 @@ button { cursor: pointer; }
 .topbar .back-link { grid-column: 1 / -1; justify-self: start; margin-bottom: 2px; }
 /* Customer phone header: the sandbox note as fine print, not a strip. */
 .phone-top .fineprint { font-size: 10px; letter-spacing: .02em; opacity: .7; }
+
+/* Customer phone: WhatsApp business look. Header = the shop as the chat partner; "You are …" says whose phone this is. */
+.wa-head { display: flex; align-items: center; gap: 10px; }
+.wa-avatar { width: 40px; height: 40px; border-radius: 50%; background: #fff; color: #0E5A47; font-weight: 800; display: grid; place-items: center; font-size: 18px; flex: none; }
+.wa-head-text { min-width: 0; }
+.wa-you { margin: 8px 0 0; font-size: 12px; color: #CDE7DE; }
+.wa-you strong { color: #fff; font-weight: 600; }
+.bubble.has-actions { padding-bottom: 0; }
+.wa-actions { margin: 8px -12px 0; border-top: 1px solid #ECECEC; }
+.wa-action { display: block; width: 100%; padding: 12px; border: 0; border-top: 1px solid #ECECEC; background: none; color: #0E5A47; font-weight: 600; font-size: 15px; text-align: center; text-decoration: none; cursor: pointer; }
+.wa-action:first-child { border-top: 0; }
+.wa-action:disabled { color: #9AA5A1; cursor: default; }
+.wa-action.attention { background: rgba(14, 90, 71, .06); }
+.bubble.in .wa-actions { display: none; }
