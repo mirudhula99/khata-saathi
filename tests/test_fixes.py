@@ -176,6 +176,8 @@ class GuardrailTests(unittest.TestCase):
 
     def test_failed_send_is_not_counted_as_sent(self):
         ravi = self.customers["Ravi|"]["id"]
+        # The seed puts Ravi on the Paytm app channel (in-app notifications never fail); this test is about WhatsApp sends.
+        self.client.patch(f"/api/customers/{ravi}", json={"channel": "whatsapp"})
         settings.messaging_channel = "whatsapp"  # no token configured, so every send fails
         try:
             response = self.client.post(f"/api/customers/{ravi}/remind", json={})

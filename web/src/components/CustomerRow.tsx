@@ -1,3 +1,4 @@
+import { MessageCircle, Wallet } from 'lucide-react';
 import type { CustomerRowData } from '@/lib/types';
 import { useT } from '@/lib/i18n';
 import { initial } from '@/lib/ui';
@@ -32,6 +33,10 @@ export function CustomerRow({ c, quiet = false }: { c: CustomerRowData; last?: b
           {c.name}
           {c.disputes > 0 && <StatusChip kind="flagged" className="ml-1.5 align-middle" />}
           {c.consent === 'opted_out' ? <StatusChip kind="optedOut" className="ml-1.5 align-middle" /> : c.reminders_paused ? <StatusChip kind="paused" className="ml-1.5 align-middle" /> : null}
+          {/* Channel mark: WhatsApp (green bubble) or the Paytm app (wallet). */}
+          {c.channel === 'paytm'
+            ? <Wallet className="ml-1.5 inline size-3.5 align-middle text-sky-ink" strokeWidth={2} aria-label={t('Paytm app')} />
+            : <MessageCircle className="ml-1.5 inline size-3.5 align-middle text-paid" strokeWidth={2} aria-label={t('WhatsApp')} />}
         </>
       }
       // Quiet rows (settled list): the note if there is one, otherwise just the name. Phone numbers are noise in a list.

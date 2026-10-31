@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, Info, MessageCircle, Pause, PenLine, Play, Smartphone } from 'lucide-react';
+import { Bell, Info, MessageCircle, Pause, PenLine, Play, Smartphone, Wallet } from 'lucide-react';
 import { AppShell, HeaderBand, Scroll } from '@/components/AppShell';
 import { PaytmButton, PaytmCard, PaytmRow, paytmButtonClass } from '@/components/paytm';
 import { ReminderMessageSheet } from '@/components/ReminderMessageSheet';
@@ -74,7 +74,7 @@ export function RemindersPage() {
                 <div key={c.id} className={cn(i > 0 && 'border-t border-line')}>
                   <PaytmRow
                     avatar={c.name}
-                    title={<span className="flex items-center gap-1.5"><span className="truncate">{c.name}</span>{badge(c)}</span>}
+                    title={<span className="flex items-center gap-1.5"><span className="truncate">{c.name}</span>{badge(c)}{c.channel === 'paytm' ? <Wallet className="size-3.5 shrink-0 text-sky-ink" strokeWidth={2} aria-label={t('Paytm app')} /> : <MessageCircle className="size-3.5 shrink-0 text-paid" strokeWidth={2} aria-label={t('WhatsApp')} />}</span>}
                     sub={`${t('{n} days', { n: c.days })} · ${why(c)}`}
                     right={<span className="text-owed">{inr(c.balance)}</span>}
                     to={`/khata/${c.id}`}
@@ -91,7 +91,9 @@ export function RemindersPage() {
                   <div className="flex items-center gap-2 px-4 pb-3">
                     <PaytmButton variant="primary" size="sm" className="h-11" icon={Bell} disabled={c.consent !== 'granted' || c.disputes > 0} onClick={() => void remindNow(c.id)}>{t('Remind now')}</PaytmButton>
                     <PaytmButton variant="outline" size="sm" className="h-11" icon={c.reminders_paused ? Play : Pause} onClick={() => void patchCustomer(c.id, { reminders_paused: !c.reminders_paused })}>{c.reminders_paused ? t('Resume') : t('Pause')}</PaytmButton>
-                    <a href={`/customer?id=${c.id}`} target="_blank" rel="noopener" aria-label={t("Open customer's phone")} className={paytmButtonClass('ghost', 'sm', false, 'ml-auto size-11 px-0')}><Smartphone className="size-[18px]" strokeWidth={1.8} /></a>
+                    {c.channel === 'paytm'
+                      ? <a href={`/paytm?id=${c.id}`} target="_blank" rel="noopener" aria-label={t("Open customer's Paytm")} className={paytmButtonClass('ghost', 'sm', false, 'ml-auto size-11 px-0')}><Wallet className="size-[18px]" strokeWidth={1.8} /></a>
+                      : <a href={`/customer?id=${c.id}`} target="_blank" rel="noopener" aria-label={t("Open customer's phone")} className={paytmButtonClass('ghost', 'sm', false, 'ml-auto size-11 px-0')}><Smartphone className="size-[18px]" strokeWidth={1.8} /></a>}
                   </div>
                 </div>
             ))}

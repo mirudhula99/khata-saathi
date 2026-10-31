@@ -27,6 +27,8 @@ export interface Customer {
   reminders_paused: boolean;
   /** Merchant's own line added to this customer's reminders (the link and STOP line are always appended). */
   reminder_note: string | null;
+  /** Where they get messages: WhatsApp, or in-app notifications in the Paytm app (mock page /paytm). */
+  channel: 'whatsapp' | 'paytm';
   /** Udhaar limit in rupees; going over it makes Saathi warn before saving. */
   credit_limit: number | null;
   /** "qr" when they added themselves through the public Join page. */
@@ -186,6 +188,7 @@ export interface CustomerPatch {
   consent?: Consent | null;
   reminders_paused?: boolean | null;
   reminder_note?: string | null;
+  channel?: 'whatsapp' | 'paytm' | null;
 }
 
 /** GET /api/today: today's totals and Saathi's sentence for them in the merchant's language. */

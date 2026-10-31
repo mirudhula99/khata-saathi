@@ -45,7 +45,11 @@ def send(db: Session, customer: Customer, *, kind: str, body: str, buttons: list
                   body=body, buttons=buttons or [], link_url=link_url, status="queued")
     db.add(msg)
     db.flush()
-    if settings.messaging_channel == "whatsapp":
+    if (customer.channel or "whatsapp") == "paytm":
+        # In-app notification in the Paytm app (mock page at /paytm?id=…). Nothing leaves the server.
+        msg.channel = "paytm"
+        msg.status = "delivered"
+    elif settings.messaging_channel == "whatsapp":
         if not customer.phone:
             msg.status = "no_phone"
         else:

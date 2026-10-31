@@ -143,6 +143,12 @@ def page_merchant_legacy():
     return _page("index.html")
 
 
+@app.get("/paytm", include_in_schema=False)
+def page_paytm():
+    """Mock of the customer's Paytm app: reminders as in-app notifications, Pay opens a Paytm-style payment sheet."""
+    return _page("paytm.html")
+
+
 @app.get("/customer", include_in_schema=False)
 def page_customer():
     return _page("customer.html")
@@ -203,6 +209,7 @@ class CustomerPatch(BaseModel):
     reminders_paused: bool | None = None
     credit_limit: int | None = None  # rupees; null or 0 removes the limit
     reminder_note: str | None = None
+    channel: str | None = None
 
 
 class NewCustomerIn(BaseModel):
@@ -603,7 +610,7 @@ def api_reset():
 # ------------------------------------------------------------------ React app routes (must stay last)
 # /khata, /khata/3, /reminders, /account ... are client-side routes of the React app in static/app.
 # Registered after every real route, so API, static files, webhooks and the original pages win.
-_RESERVED_PREFIXES = ("api/", "static/", "audio/", "webhooks/", "customer", "pay/", "join/", "manifest.webmanifest", "sw.js", "legacy")
+_RESERVED_PREFIXES = ("api/", "static/", "audio/", "webhooks/", "customer", "paytm", "pay/", "join/", "manifest.webmanifest", "sw.js", "legacy")
 
 
 @app.get("/{path:path}", include_in_schema=False)

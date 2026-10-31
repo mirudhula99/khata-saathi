@@ -65,6 +65,8 @@ def seed(db: Session) -> Merchant:
             consent_at=clock.now() - timedelta(days=60) if consent != "pending" else None,
             created_at=clock.now() - timedelta(days=62),
         )
+        # Demo: Ravi gets his reminders inside the Paytm app; everyone else on WhatsApp.
+        customer.channel = "paytm" if name == "Ravi" else "whatsapp"
         db.add(customer)
         db.flush()
 

@@ -62,7 +62,13 @@ WhatsApp is a simulator with the Cloud API wired behind a flag. Payments are a m
 - Frontend: `web/src/lib/i18n.ts` (`useT()` in components, `tNow()` in the store) looks each English string up in the merchant's language; English is the fallback. Dictionaries per area in `web/src/i18n/{shared,saathi,khata,more}.ts`, keys = the exact English strings, placeholders `{name}`. Hindi, Kannada, Tamil, Telugu.
 - Backend: `app/i18n.py` has MERCHANT (Saathi replies), CUSTOMER (WhatsApp messages) and NOTIF (bell items) tables in all five languages; `notifications.build(db, merchant_id, lang)`. `FlowError` texts stay English.
 - Demo rule: in DEMO_MODE, changing the merchant language also sets every customer's language (`services.sync_demo_languages`), so reminders and the customer phone flip with the dropdown. In production each customer keeps the language they chose when joining.
-- Plain pages (`static/customer.js`, `pay.html`, `join.html`) carry their own small dictionaries keyed by the customer's (or shop's) language.
+- Plain pages (`static/customer.js`, `pay.html`, `join.html`, `paytm.js`) carry their own small dictionaries keyed by the customer's (or shop's) language.
+
+## Customer channels (WhatsApp or the Paytm app)
+
+- `Customer.channel` = `whatsapp` (default) or `paytm`; editable on the customer page ("Reminders via"), shown as a small mark on Khata and Reminders rows. Seed: Ravi is on the Paytm app, everyone else on WhatsApp.
+- Paytm-channel messages are stored with `channel="paytm"`, status delivered, and never go to the WhatsApp API. The mock Paytm app is `static/paytm.html` + `paytm.js` at `/paytm?id=<customer>`: notifications list (Pay, Amount wrong?), a reminders switch (STOP/START), and a Paytm-style payment sheet that posts to the same `/api/pay/{link}/simulate` mock webhook as the WhatsApp pay page.
+- The phone icon on a row opens `/customer?id=` for WhatsApp customers and `/paytm?id=` for Paytm ones.
 - Translations are agent-written drafts; have a native speaker read Tamil and Kannada before showing them to a judge who speaks them.
 
 ## Conventions

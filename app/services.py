@@ -62,7 +62,7 @@ def customer_dict(db: Session, c: Customer, bal_paise: int | None = None, with_s
         "id": c.id, "name": c.display_name, "name_latin": c.name_latin, "note": c.note, "phone": c.phone,
         "language": c.language,
         "consent": c.consent, "reminders_paused": c.reminders_paused, "reminder_note": c.reminder_note,
-        "credit_limit": c.credit_limit, "origin": c.origin, "balance": rupees(bal),
+        "credit_limit": c.credit_limit, "origin": c.origin, "channel": c.channel or "whatsapp", "balance": rupees(bal),
     }
     if with_stats:
         data["stats"] = ledger.customer_stats(db, c)
@@ -1027,6 +1027,8 @@ def update_customer(db: Session, customer_id: int, changes: dict) -> dict:
             raise FlowError(f"Keep the reminder polite: words like “{bad}” aren't allowed. Threats or insults "
                             "upset customers and can get the shop's WhatsApp number blocked.")
         customer.reminder_note = note
+    if "channel" in changes and changes["channel"] in ("whatsapp", "paytm"):
+        customer.channel = changes["channel"]
     if "language" in changes:
         customer.language = norm_lang(changes["language"])
     if "reminders_paused" in changes:
