@@ -19,24 +19,6 @@ const renderIcon = (icon: Icon | undefined, className: string, strokeWidth = 2) 
 /* ------------------------------------------------------------------ Top bar ------------------------------------- */
 
 /** "Khata Saathi" two-tone wordmark (mirrors pay|tm): "Khata" in --p-blue, "Saathi" in --p-sky. */
-/**
- * The only trace of demo mode on product screens: a 10px grey caption under the top-bar title, "sandbox · no real money".
- * When the demo clock has been moved it adds the shifted day ("sandbox · Sun, 8 Nov"), which explains a jump in reminders.
- */
-export function SandboxNote() {
-  const t = useT();
-  const demo = useKhata((s) => s.state?.health.demo_mode ?? false);
-  const offset = useKhata((s) => s.state?.clock_offset_days ?? 0);
-  if (!demo) return null;
-  let day = '';
-  if (offset > 0) {
-    const d = new Date();
-    d.setDate(d.getDate() + Math.round(offset));
-    day = d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
-  }
-  return <span className="mt-0.5 text-[10px] font-medium leading-none tracking-wide text-ink-3">{day ? t('sandbox · {day} · no real money', { day }) : t('sandbox · no real money')}</span>;
-}
-
 export function Wordmark({ className }: { className?: string }) {
   return (
     <span className={cn('font-display select-none text-[22px] font-extrabold leading-none tracking-[-0.03em]', className)}>
@@ -110,7 +92,6 @@ export function TopBar({ title, left, right, back = false, backTo, className }: 
       <div className="flex min-w-0 flex-1 items-center gap-2">{leftNode}</div>
       <div className="flex min-w-0 shrink-0 flex-col items-center">
         {title === undefined || title === null ? <Wordmark /> : typeof title === 'string' ? <span className="font-display block truncate text-[17px] font-extrabold text-blue">{title}</span> : title}
-        <SandboxNote />
       </div>
       <div className="flex min-w-0 flex-1 items-center justify-end gap-1">{rightNode}</div>
     </header>
