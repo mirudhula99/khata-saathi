@@ -35,6 +35,7 @@ interface KhataState {
   dismiss: () => void;
   remindNow: (customerId: number) => Promise<void>;
   sendStatement: (customerId: number) => Promise<void>;
+  removeCustomer: (customerId: number) => Promise<boolean>;
   patchCustomer: (customerId: number, patch: CustomerPatch) => Promise<boolean>;
   resolveDispute: (entryId: number, action: 'keep' | 'remove') => Promise<void>;
   fastForward: (days?: number) => Promise<void>;
@@ -131,11 +132,24 @@ export const useKhata = create<KhataState>((set, get) => {
 
     remindNow: async (customerId) => {
       try {
-        await api.remindNow(customerId);
+        const r = await api.remindNow(customerId);
         const c = get().state?.customers.find((x) => x.id === customerId);
-        toast.success('Reminder sent', { description: c ? `${c.name} · ${inr(c.balance)} · with a payment link` : undefined });
+        if (r.scheduled_for) {
+          const at = new Date(r.scheduled_for).toLocaleString('en-IN', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+          toast.success('Reminder scheduled', { description: `Outside reminder hours, so it goes to ${c?.name ?? 'them'} at ${at}.` });
+        } else {
+          toast.success('Reminder sent', { description: c ? `${c.name} · ${inr(c.balance)} · with a payment link` : undefined });
+        }
         await get().refresh();
       } catch (e) { toast.error(errMsg(e)); }
+    },
+    removeCustomer: async (customerId) => {
+      try {
+        const r = await api.deleteCustomer(customerId);
+        toast.success('Customer removed', { description: r.name });
+        await get().refresh();
+        return true;
+      } catch (e) { toast.error(errMsg(e)); return false; }
     },
     sendStatement: async (customerId) => {
       try {

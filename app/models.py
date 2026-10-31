@@ -42,6 +42,8 @@ class Customer(Base):
     reminder_note: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     # Optional udhaar limit in rupees. Going over it is allowed, but Saathi warns in the read-back first.
     credit_limit: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # "qr" when the customer added themselves through the public Join page (the shop can remove them if unused).
+    origin: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.now)
 
 

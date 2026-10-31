@@ -96,7 +96,7 @@ export function AccountPage() {
               </label>
             </div>
             {customers.map((c) => (
-              <PaytmRow key={c.id} avatar={c.name} title={c.name} sub={[c.note, c.phone].filter(Boolean).join(' · ') || 'No mobile or street yet'}
+              <PaytmRow key={c.id} avatar={c.name} title={c.name} sub={[c.origin === 'qr' ? 'Joined via QR' : '', c.note, c.phone].filter(Boolean).join(' · ') || 'No mobile or label yet'}
                 right={<span className={cn('tabular-nums', c.balance > 0 ? 'text-owed' : 'text-paid')}>{c.balance > 0 ? inr(c.balance) : 'Paid up'}</span>}
                 chevron onClick={() => setEditId(c.id)} />
             ))}

@@ -13,7 +13,8 @@ import { useKhata } from '@/store/useKhata';
  * entry, so the history is never rewritten.
  */
 export function CustomerEditSheet({ customer, onOpenChange }: { customer: CustomerRowData | null; onOpenChange: (o: boolean) => void }) {
-  const { patchCustomer, loading } = useKhata();
+  const { patchCustomer, removeCustomer, loading } = useKhata();
+  const [confirmRemove, setConfirmRemove] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [note, setNote] = useState('');
@@ -26,10 +27,12 @@ export function CustomerEditSheet({ customer, onOpenChange }: { customer: Custom
   useEffect(() => {
     if (!customer) return;
     setName(customer.name); setPhone(customer.phone ?? ''); setNote(customer.note ?? '');
+    setConfirmRemove(false);
     setBalance(String(customer.balance)); setLimit(customer.credit_limit ? String(customer.credit_limit) : ''); setError('');
   }, [customer?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const owed = Number(balance);
+  const flagged = (customer?.disputes ?? 0) > 0;
   const balanceChanged = customer != null && balance.trim() !== '' && owed !== customer.balance;
 
   const save = async (e: FormEvent) => {
@@ -76,12 +79,13 @@ export function CustomerEditSheet({ customer, onOpenChange }: { customer: Custom
             <label className="mt-1 text-[12px] font-medium text-ink-2" htmlFor="custBalance">Amount owed</label>
             <label className="flex h-14 items-center gap-2 rounded-xl border border-line bg-card px-4 focus-within:border-sky focus-within:ring-[3px] focus-within:ring-sky/25">
               <span className="font-display text-[20px] font-bold text-ink-2" aria-hidden="true">₹</span>
-              <input id="custBalance" inputMode="numeric" type="number" min={0} step={1} value={balance} onChange={(e) => setBalance(e.target.value)}
+              <input id="custBalance" inputMode="numeric" type="number" min={0} step={1} value={balance} onChange={(e) => setBalance(e.target.value)} disabled={flagged}
                 className="font-display h-full min-w-0 flex-1 bg-transparent text-[24px] font-extrabold tabular-nums text-ink outline-none" />
             </label>
+            {flagged && <p className="text-[12px] leading-snug text-owed">They flagged an entry. Keep or remove it on their page before changing what they owe.</p>}
             {balanceChanged && customer && Number.isInteger(owed) && owed >= 0 && (
               <PaytmAlert tone="info">
-                {inr(customer.balance)} → {inr(owed)}. A “balance corrected” entry of {owed > customer.balance ? '+' : '−'}{inr(Math.abs(owed - customer.balance))} is added; past entries stay as they are.
+                {inr(customer.balance)} → {inr(owed)}. A “balance corrected” entry of {owed > customer.balance ? '+' : '−'}{inr(Math.abs(owed - customer.balance))} is added; past entries stay as they are.{owed > customer.balance && customer.consent === 'granted' ? ' They get a WhatsApp to confirm it or say it’s wrong.' : ''}
               </PaytmAlert>
             )}
             <label className="mt-1 text-[12px] font-medium text-ink-2" htmlFor="custLimit">Credit limit</label>
@@ -92,6 +96,19 @@ export function CustomerEditSheet({ customer, onOpenChange }: { customer: Custom
             </label>
             <p className="text-[12px] leading-snug text-ink-2">If new udhaar takes them over this, Saathi warns you before saving.</p>
             {error && <p className="text-[12px] text-error-ink">{error}</p>}
+
+            {/* Only customers with nothing in the khata can go (a mistaken add, or a spam join); the server checks. */}
+            {customer && customer.balance === 0 && (confirmRemove ? (
+              <PaytmAlert tone="warning" title={`Remove ${customer.name}?`} className="mt-2"
+                action={<>
+                  <PaytmButton variant="dark" size="sm" onClick={() => void removeCustomer(customer.id).then((ok) => ok && onOpenChange(false))}>Remove</PaytmButton>
+                  <PaytmButton variant="ghost" size="sm" onClick={() => setConfirmRemove(false)}>Keep</PaytmButton>
+                </>}>
+                Only possible if they have no entries in the khata.
+              </PaytmAlert>
+            ) : (
+              <button type="button" onClick={() => setConfirmRemove(true)} className="mt-2 self-start text-[13px] font-semibold text-error-ink active:opacity-70">Remove customer</button>
+            ))}
           </div>
 
           <div className="grid shrink-0 grid-cols-2 gap-2 px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-2">

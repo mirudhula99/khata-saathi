@@ -1,5 +1,6 @@
 """Khata Saathi API and pages. Run: uvicorn app.main:app --reload --port 8000"""
 import asyncio
+import time
 import hmac
 import io
 import json
@@ -330,6 +331,12 @@ def api_reminder_preview(customer_id: int, db: Session = Depends(get_db)):
     return services.reminder_preview(db, customer_id)
 
 
+@app.delete("/api/customers/{customer_id}")
+def api_customer_delete(customer_id: int, db: Session = Depends(get_db)):
+    """Remove a customer with nothing in the khata (for example a spam join). Customers with history stay."""
+    return services.delete_customer(db, customer_id)
+
+
 @app.post("/api/customers/{customer_id}/statement")
 def api_statement(customer_id: int, db: Session = Depends(get_db)):
     """WhatsApp the customer their recent entries, balance and a payment link."""
@@ -513,8 +520,24 @@ def api_join_info(merchant_id: int, db: Session = Depends(get_db)):
     return {"shop": merchant.shop_name, "language": merchant.language}
 
 
+# The Join page is public, so joins are rate-limited per network: a real customer joins once.
+JOIN_LIMIT, JOIN_WINDOW_SECONDS = 5, 3600
+_join_times: dict[str, list[float]] = {}
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for", "").split(",")[0]
+    return forwarded.strip() or (request.client.host if request.client else "unknown")
+
+
 @app.post("/api/join/{merchant_id}")
-def api_join(merchant_id: int, body: JoinIn, db: Session = Depends(get_db)):
+def api_join(merchant_id: int, body: JoinIn, request: Request, db: Session = Depends(get_db)):
+    now = time.time()
+    ip = _client_ip(request)
+    recent = [t for t in _join_times.get(ip, []) if now - t < JOIN_WINDOW_SECONDS]
+    if len(recent) >= JOIN_LIMIT:
+        raise HTTPException(429, "Too many sign-ups from this network. Please ask the shop.")
+    _join_times[ip] = [*recent, now]
     if not body.consent:
         raise HTTPException(400, "Tick the box to agree to updates and reminders.")
     if not body.name.strip():

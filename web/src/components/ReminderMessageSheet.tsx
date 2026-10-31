@@ -36,7 +36,8 @@ export function ReminderMessageSheet({ customer, open, onOpenChange }: { custome
 
   const save = async (value: string) => {
     setSaving(true);
-    try { await patchCustomer(customer.id, { reminder_note: value || null }); onOpenChange(false); }
+    // Stays open if the server refuses the line (for example a threatening word), so it can be fixed.
+    try { if (await patchCustomer(customer.id, { reminder_note: value || null })) onOpenChange(false); }
     finally { setSaving(false); }
   };
 
@@ -71,7 +72,7 @@ export function ReminderMessageSheet({ customer, open, onOpenChange }: { custome
               placeholder="e.g. Also, your Diwali order is ready. Pay when you come by."
               className="w-full resize-none rounded-xl border border-line bg-card px-3 py-2 text-[15px] text-ink outline-none placeholder:text-ink-3 focus:border-sky focus:ring-2 focus:ring-sky/30" />
           </label>
-          <p className="flex items-start gap-1.5 text-[12px] leading-snug text-ink-2"><Lock className="mt-0.5 size-3.5 shrink-0" strokeWidth={2} /> The greeting, the amount, the payment link and the STOP line are always sent, in {customer.name.split(' ')[0]}'s language. Your line goes with them in every reminder until you clear it.</p>
+          <p className="flex items-start gap-1.5 text-[12px] leading-snug text-ink-2"><Lock className="mt-0.5 size-3.5 shrink-0" strokeWidth={2} /> The greeting, the amount, the payment link and the STOP line are always sent, in {customer.name.split(' ')[0]}'s language. Your line goes with them in every reminder until you clear it. Keep it polite: threats or insults (police, court, thief…) aren't allowed.</p>
 
           <div className="flex min-w-0 gap-2 pt-1">
             {(customer.reminder_note ?? '') !== '' && <PaytmButton variant="outline" className="shrink-0" onClick={() => void save('')} disabled={saving}>Clear line</PaytmButton>}

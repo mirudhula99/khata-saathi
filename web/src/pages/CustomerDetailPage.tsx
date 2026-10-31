@@ -131,7 +131,8 @@ export function CustomerDetailPage() {
           <PaytmCard padded={false} title="WhatsApp and reminders" subtitle="Polite messages from your shop, on your schedule">
             <PaytmRow
               title={<label htmlFor="consent" className="cursor-pointer">Agreed to WhatsApp updates</label>}
-              right={<Switch id="consent" checked={c.consent === 'granted'} onCheckedChange={(v) => void patchCustomer(c.id, { consent: v ? 'granted' : c.consent === 'opted_out' ? 'opted_out' : 'pending' })} />}
+              sub={c.consent === 'opted_out' ? 'They replied STOP. Only they can turn it back on, by replying START.' : undefined}
+              right={<Switch id="consent" checked={c.consent === 'granted'} disabled={c.consent === 'opted_out'} onCheckedChange={(v) => void patchCustomer(c.id, { consent: v ? 'granted' : 'pending' })} />}
             />
             <PaytmRow
               title={<label htmlFor="paused" className="cursor-pointer">Pause reminders</label>}

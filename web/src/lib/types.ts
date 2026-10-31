@@ -29,6 +29,8 @@ export interface Customer {
   reminder_note: string | null;
   /** Udhaar limit in rupees; going over it makes Saathi warn before saving. */
   credit_limit: number | null;
+  /** "qr" when they added themselves through the public Join page. */
+  origin: string | null;
   balance: number;
 }
 

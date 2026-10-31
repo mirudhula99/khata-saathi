@@ -5,10 +5,11 @@ speak -> understand -> resolve customer -> pending action -> merchant says yes
 payment -> balance updated -> reminders stop.
 """
 import logging
+import re
 import threading
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from . import audio, clock, ledger, messaging, payments, query, sarvam
@@ -16,7 +17,7 @@ from .config import settings
 from .db import SessionLocal
 from .events import bus
 from .i18n import CASH_SUFFIX, customer_text, items_text, norm_lang, say
-from .models import Customer, LedgerEntry, Merchant, Message, PendingAction, Reminder
+from .models import Customer, LedgerEntry, Merchant, Message, Payment, PaymentLink, PendingAction, Reminder
 from .resolver import display_name, name_key, resolve
 from .understand import ParsedCommand, understand
 
@@ -61,7 +62,7 @@ def customer_dict(db: Session, c: Customer, bal_paise: int | None = None, with_s
         "id": c.id, "name": c.display_name, "name_latin": c.name_latin, "note": c.note, "phone": c.phone,
         "language": c.language,
         "consent": c.consent, "reminders_paused": c.reminders_paused, "reminder_note": c.reminder_note,
-        "credit_limit": c.credit_limit, "balance": rupees(bal),
+        "credit_limit": c.credit_limit, "origin": c.origin, "balance": rupees(bal),
     }
     if with_stats:
         data["stats"] = ledger.customer_stats(db, c)
@@ -257,6 +258,11 @@ def _last_undoable(db: Session, merchant_id: int, customer_id: int | None = None
     return db.scalars(q.order_by(LedgerEntry.id.desc())).first()
 
 
+def _undo_would_go_negative(db: Session, entry: LedgerEntry) -> bool:
+    """An udhaar that has been (partly) paid can't be removed: the balance would go below zero."""
+    return entry.type == "credit" and ledger.balance_paise(db, entry.customer_id) < entry.amount_paise
+
+
 def _start_undo(db: Session, merchant: Merchant, parsed: ParsedCommand, transcript: str, lang: str,
                 customer_id: int | None = None) -> dict:
     common = {"transcript": transcript, "parsed": parsed}
@@ -267,6 +273,10 @@ def _start_undo(db: Session, merchant: Merchant, parsed: ParsedCommand, transcri
     if entry is None:
         db.commit()
         return _reply(db, lang, key="nothing_to_undo", **common)
+    if _undo_would_go_negative(db, entry):
+        db.commit()
+        return _reply(db, lang, key="undo_paid", values={"name": db.get(Customer, entry.customer_id).display_name},
+                      **common)
     now = clock.now()
     p = PendingAction(merchant_id=merchant.id, kind="undo", state="awaiting_confirm", transcript=transcript,
                       data={"entry_id": entry.id, "entry_type": entry.type, "amount": rupees(entry.amount_paise),
@@ -286,6 +296,11 @@ def _execute_undo(db: Session, merchant: Merchant, p: PendingAction, lang: str, 
         p.state = "cancelled"
         db.commit()
         return _reply(db, lang, key="nothing_to_undo", **extra)
+    if _undo_would_go_negative(db, entry):  # paid by link between the read-back and the yes
+        p.state = "cancelled"
+        db.commit()
+        return _reply(db, lang, key="undo_paid", values={"name": db.get(Customer, entry.customer_id).display_name},
+                      **extra)
     reversal = ledger.reverse_entry(db, entry, source="voice")
     p.state = "done"
     customer = db.get(Customer, entry.customer_id)
@@ -674,6 +689,16 @@ def account_statement(db: Session, merchant: Merchant, customer: Customer) -> st
                          balance=rupees(ledger.balance_paise(db, customer.id)))
 
 
+def _hours_text() -> str:
+    """QUIET_HOURS "9-20" as "9am to 8pm"."""
+    try:
+        start, end = (int(x) for x in settings.quiet_hours.split("-"))
+    except ValueError:
+        return settings.quiet_hours
+    fmt = lambda h: f"{(h - 1) % 12 + 1}{'am' if h < 12 else 'pm'}"  # noqa: E731
+    return f"{fmt(start)} to {fmt(end)}"
+
+
 def _send_reminder_message(db: Session, merchant: Merchant, customer: Customer, tone: int, bal_paise: int) -> Message:
     link = payments.create_link(db, merchant, customer, bal_paise)
     lang = customer.language
@@ -780,6 +805,12 @@ def remind_now(db: Session, customer_id: int) -> dict:
     min_gap = timedelta(hours=settings.min_hours_between_reminders)
     if last_sent and last_sent.sent_at and clock.now() - last_sent.sent_at < min_gap:
         raise FlowError(f"{customer.display_name} was already reminded today. At most one reminder a day.")
+    quiet = _quiet_until(clock.now())
+    if quiet:  # outside reminder hours: queue it for the morning instead of messaging at night
+        cancel_reminders(db, customer.id, "rescheduled by merchant out of hours")
+        ensure_reminder(db, customer, quiet)
+        db.commit()
+        return {"ok": True, "scheduled_for": quiet.isoformat() + "Z"}
     msg = _send_reminder_message(db, merchant, customer, 1, bal)
     if msg.status == "no_phone":
         raise FlowError(f"Add a phone number for {customer.display_name} first.")
@@ -823,13 +854,13 @@ def handle_customer_reply(db: Session, customer: Customer, *, button_id: str | N
             if action == "ack" and entry.status == "active":
                 entry.customer_ack = "ack"
                 result = {"action": "ack"}
-            elif (action == "dispute" and entry.status == "active" and entry.type == "credit"
+            elif (action == "dispute" and entry.status == "active" and _disputable(entry)
                   and ledger.balance_paise(db, customer.id) < entry.amount_paise):
                 # Part of this credit is already paid: holding it back would make the balance negative.
                 messaging.send(db, customer, kind="notice",
                                body=customer_text(lang, "dispute_paid", shop=merchant.shop_name))
                 result = {"action": "dispute_refused"}
-            elif action == "dispute" and entry.status == "active" and entry.type == "credit":
+            elif action == "dispute" and entry.status == "active" and _disputable(entry):
                 entry.customer_ack, entry.status = "disputed", "disputed"
                 db.commit()
                 messaging.send(db, customer, kind="notice",
@@ -855,6 +886,11 @@ def handle_customer_reply(db: Session, customer: Customer, *, button_id: str | N
     db.commit()
     bus.publish(f"merchant:{merchant.id}", {"type": "refresh"})
     return result
+
+
+def _disputable(entry: LedgerEntry) -> bool:
+    """What a customer can flag as wrong: udhaar, and an increase the shop made to what they owe."""
+    return entry.type == "credit" or (entry.type == "adjustment" and entry.signed_paise > 0)
 
 
 def _grant_consent(db: Session, customer: Customer) -> None:
@@ -902,6 +938,25 @@ def add_customer(db: Session, name: str, *, phone: str | None = None, note: str 
     return customer_detail(db, customer.id)
 
 
+# Words that turn a reminder into a threat or an insult (English, Hinglish, Hindi, Kannada, Tamil, Telugu).
+IMPOLITE = ["police", "court", "legal action", "lawyer", "jail", "beat", "kill", "thief", "cheat", "cheater",
+            "fraud", "shame", "goonda", "chor", "dhokebaaz", "badnaam", "maarenge", "pitai", "last warning",
+            "पुलिस", "कोर्ट", "जेल", "चोर", "धोखेबाज़", "धोखेबाज", "बदनाम", "मारेंगे",
+            "ಪೊಲೀಸ್", "ಕೋರ್ಟ್", "ಜೈಲ್", "ಕಳ್ಳ", "ಮೋಸಗಾರ", "போலீஸ்", "கோர்ட்", "ஜெயில்", "திருடன்", "ஏமாற்றுக்காரன்",
+            "పోలీస్", "కోర్టు", "జైలు", "దొంగ", "మోసగాడు"]
+
+
+def _impolite_word(text: str) -> str | None:
+    low = text.lower()
+    for word in IMPOLITE:
+        if word.isascii():
+            if re.search(rf"\b{re.escape(word)}\b", low):
+                return word
+        elif word in text:
+            return word
+    return None
+
+
 def update_customer(db: Session, customer_id: int, changes: dict) -> dict:
     customer = db.get(Customer, customer_id)
     if customer is None:
@@ -938,7 +993,26 @@ def update_customer(db: Session, customer_id: int, changes: dict) -> dict:
         balance = int(changes["balance"])
         if not 0 <= balance <= 1_000_000:
             raise FlowError("Enter an amount between ₹0 and ₹10,00,000.")
-        if ledger.adjust_balance(db, customer, balance * 100):
+        if balance * 100 != ledger.balance_paise(db, customer.id):
+            # A flagged entry is held out of the balance; correcting around it would count it twice once kept.
+            if db.scalar(select(func.count()).select_from(LedgerEntry)
+                         .where(LedgerEntry.customer_id == customer.id, LedgerEntry.status == "disputed")):
+                raise FlowError(f"{customer.display_name} flagged an entry. Keep or remove it before changing "
+                                "what they owe.")
+            if customer.credit_limit and balance > customer.credit_limit:
+                raise FlowError(f"That's over {customer.display_name}'s ₹{customer.credit_limit:,} credit limit. "
+                                "Raise the limit first.")
+        entry = ledger.adjust_balance(db, customer, balance * 100)
+        if entry and entry.signed_paise > 0 and customer.consent == "granted":
+            # Asked, like any udhaar: the customer can confirm the increase or flag it as wrong.
+            merchant = db.get(Merchant, customer.merchant_id)
+            lang = customer.language
+            db.flush()
+            messaging.send(db, customer, kind="credit_note", body=customer_text(
+                lang, "balance_corrected", shop=merchant.shop_name, amount=rupees(entry.amount_paise), balance=balance),
+                buttons=[{"id": f"ack:{entry.id}", "title": customer_text(lang, "btn_ack")},
+                         {"id": f"dispute:{entry.id}", "title": customer_text(lang, "btn_dispute")}])
+        if entry:
             if balance <= 0:
                 cancel_reminders(db, customer.id, "balance set to zero")
             elif customer.consent == "granted" and not customer.reminders_paused:
@@ -947,7 +1021,12 @@ def update_customer(db: Session, customer_id: int, changes: dict) -> dict:
         customer.note = (changes["note"] or "").strip()
     if "reminder_note" in changes:
         # One short line, no line breaks: it sits between the default sentence and the STOP footer.
-        customer.reminder_note = " ".join((changes["reminder_note"] or "").split())[:200] or None
+        note = " ".join((changes["reminder_note"] or "").split())[:200] or None
+        bad = _impolite_word(note or "")
+        if bad:
+            raise FlowError(f"Keep the reminder polite: words like “{bad}” aren't allowed. Threats or insults "
+                            "upset customers and can get the shop's WhatsApp number blocked.")
+        customer.reminder_note = note
     if "language" in changes:
         customer.language = norm_lang(changes["language"])
     if "reminders_paused" in changes:
@@ -957,6 +1036,9 @@ def update_customer(db: Session, customer_id: int, changes: dict) -> dict:
         elif customer.consent == "granted" and ledger.balance_paise(db, customer.id) > 0:
             ensure_reminder(db, customer, clock.now() + timedelta(days=settings.reminder_gap_days))
     if "consent" in changes and changes["consent"] in ("granted", "pending", "opted_out"):
+        if changes["consent"] == "granted" and customer.consent == "opted_out":
+            raise FlowError(f"{customer.display_name} replied STOP, so only they can turn messages back on, "
+                            "by replying START.")
         if changes["consent"] == "granted" and customer.consent != "granted":
             _grant_consent(db, customer)
         elif changes["consent"] != "granted":
@@ -973,6 +1055,8 @@ def send_statement(db: Session, customer_id: int) -> dict:
         raise FlowError("Customer not found.")
     if customer.consent != "granted":
         raise FlowError(say("en-IN", "no_consent", name=customer.display_name))
+    if _quiet_until(clock.now()):
+        raise FlowError(f"It's outside messaging hours ({_hours_text()}). Send the statement in the morning.")
     merchant = db.get(Merchant, customer.merchant_id)
     lang = customer.language
     lines = [customer_text(lang, "statement_head", name=customer.display_name, shop=merchant.shop_name)]
@@ -1042,12 +1126,33 @@ def join_khata(db: Session, merchant_id: int, name: str, phone: str, language: s
     customer = next((c for c in customers if messaging.phone_digits(c.phone)[-10:] == digits[-10:]), None)
     if customer is None:
         customer = create_customer(db, merchant, name, phone=phone, language=language, consent="granted")
+        customer.origin = "qr"
     customer.phone = phone
     customer.language = norm_lang(language)
     _grant_consent(db, customer)
     db.commit()
     _notify_merchant(merchant, "joined", "joined", {"name": customer.display_name}, customer_id=customer.id)
     return {"ok": True, "customer_id": customer.id, "name": customer.display_name}
+
+
+def delete_customer(db: Session, customer_id: int) -> dict:
+    """Remove a customer who has nothing in the khata (a mistaken add, or a spam join). Never one with history."""
+    customer = db.get(Customer, customer_id)
+    if customer is None:
+        raise FlowError("Customer not found.")
+    has_history = db.scalar(select(func.count()).select_from(LedgerEntry).where(LedgerEntry.customer_id == customer.id)) \
+        or db.scalar(select(func.count()).select_from(Payment).where(Payment.customer_id == customer.id))
+    if has_history:
+        raise FlowError(f"{customer.display_name} has entries in the khata, so they can't be removed. "
+                        "Their history stays.")
+    for model in (Message, Reminder, PaymentLink):
+        db.execute(delete(model).where(model.customer_id == customer.id))
+    db.execute(update(PendingAction).where(PendingAction.customer_id == customer.id)
+               .values(customer_id=None, state="cancelled"))
+    name = customer.display_name
+    db.delete(customer)
+    db.commit()
+    return {"ok": True, "name": name}
 
 
 def customer_view(db: Session, customer_id: int) -> dict:
