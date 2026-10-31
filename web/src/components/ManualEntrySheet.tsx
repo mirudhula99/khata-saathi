@@ -3,6 +3,7 @@ import { Check, ShoppingBasket, X } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Grabber, PaytmAlert, PaytmBadge, PaytmButton, PaytmCard, PaytmChip, PaytmRow, RowAvatar, TopBarIcon } from '@/components/paytm';
+import { useT } from '@/lib/i18n';
 import type { CustomerRowData } from '@/lib/types';
 import { inr } from '@/lib/utils';
 import { useKhata } from '@/store/useKhata';
@@ -17,6 +18,7 @@ type Kind = 'udhaar' | 'cash';
  * received payment only (for customers who owe something). Payment links live on the customer's Record payment page.
  */
 export function ManualEntrySheet({ open, onOpenChange, customerId, startNew, startKind }: { open: boolean; onOpenChange: (o: boolean) => void; customerId?: number | null; startNew?: boolean; startKind?: Kind }) {
+  const t = useT();
   const { state, formEntry, addCustomer, loading } = useKhata();
   const customers = useMemo(() => state?.customers ?? [], [state]);
   const [query, setQuery] = useState('');
@@ -64,39 +66,39 @@ export function ManualEntrySheet({ open, onOpenChange, customerId, startNew, sta
       <SheetContent side="bottom" showCloseButton={false} className="ks-sheet mx-auto max-h-[88dvh] w-full max-w-[390px] gap-0 rounded-t-3xl p-0">
         <Grabber />
         <div className="flex h-12 shrink-0 items-center justify-between px-3">
-          <TopBarIcon icon={X} label="Close" onClick={() => onOpenChange(false)} />
-          <SheetTitle>{kind === 'cash' ? 'Record payment' : 'Add udhaar by hand'}</SheetTitle>
+          <TopBarIcon icon={X} label={t('Close')} onClick={() => onOpenChange(false)} />
+          <SheetTitle>{kind === 'cash' ? t('Record payment') : t('Add udhaar by hand')}</SheetTitle>
           <span className="size-10" aria-hidden="true" />
         </div>
-        <SheetDescription className="sr-only">{kind === 'cash' ? 'Record a payment received at the counter' : 'Record an udhaar entry'} without voice. Saathi reads it back before saving.</SheetDescription>
+        <SheetDescription className="sr-only">{kind === 'cash' ? t('Record a payment received at the counter without voice. Saathi reads it back before saving.') : t('Record an udhaar entry without voice. Saathi reads it back before saving.')}</SheetDescription>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="flex flex-col gap-3 px-4 pb-4 pt-1">
             {/* Customer: a selected chip (tap to change) or the name field with the matching rows under it. */}
             <div className="flex flex-col gap-2">
-              <span className="text-[12px] font-medium text-ink-2">Customer</span>
+              <span className="text-[12px] font-medium text-ink-2">{t('Customer')}</span>
               {who && !picking ? (
                 <div className="flex items-center">
-                  <PaytmChip selected onClick={() => setPicking(true)} aria-label={`Customer: ${who}. Tap to change`} className="h-9 gap-1.5 pl-1 pr-3 text-[13px] font-semibold" icon={<RowAvatar name={who} className="size-7 text-[13px]" />}>
-                    {who}{!customer && <PaytmBadge tone="grey" className="ml-0.5">new</PaytmBadge>}
+                  <PaytmChip selected onClick={() => setPicking(true)} aria-label={t('Customer: {name}. Tap to change', { name: who })} className="h-9 gap-1.5 pl-1 pr-3 text-[13px] font-semibold" icon={<RowAvatar name={who} className="size-7 text-[13px]" />}>
+                    {who}{!customer && <PaytmBadge tone="grey" className="ml-0.5">{t('new')}</PaytmBadge>}
                   </PaytmChip>
                 </div>
               ) : (
-                <Input id="who" autoFocus={picking} value={query} onFocus={() => setPicking(true)} onChange={(e) => { setQuery(e.target.value); setPicking(true); }} placeholder="Name" autoComplete="off" />
+                <Input id="who" autoFocus={picking} value={query} onFocus={() => setPicking(true)} onChange={(e) => { setQuery(e.target.value); setPicking(true); }} placeholder={t('Name')} autoComplete="off" />
               )}
               {picking && paymentOnly && filtered.length === 0 && (
-                <p className="text-[13px] text-ink-2">{query ? `No one called "${query}" owes you money.` : 'Nobody owes you money right now.'}</p>
+                <p className="text-[13px] text-ink-2">{query ? t('No one called "{query}" owes you money.', { query }) : t('Nobody owes you money right now.')}</p>
               )}
               {picking && (filtered.length > 0 || (query && !paymentOnly)) && (
                 <PaytmCard padded={false}>
                   {filtered.map((c) => (
                     <PaytmRow key={c.id} avatar={c.name} title={c.name} sub={c.note || undefined} onClick={() => pick(c)}
-                      right={<span className={c.balance > 0 ? 'text-owed' : 'text-paid'}>{c.balance > 0 ? inr(c.balance) : 'Paid up'}</span>} />
+                      right={<span className={c.balance > 0 ? 'text-owed' : 'text-paid'}>{c.balance > 0 ? inr(c.balance) : t('Paid up')}</span>} />
                   ))}
                   {query && !paymentOnly && !filtered.some((c) => c.name.toLowerCase() === query.toLowerCase()) && (
                     <PaytmRow
                       avatar={<span className="grid size-10 shrink-0 place-items-center rounded-full bg-sky-tint text-sky-ink" aria-hidden="true"><Check className="size-5" strokeWidth={1.8} /></span>}
-                      title={<span className="text-sky-ink">Add "{query.trim()}" as a new customer</span>}
+                      title={<span className="text-sky-ink">{t('Add "{name}" as a new customer', { name: query.trim() })}</span>}
                       onClick={() => { setCustomer(null); setNewName(query.trim()); setQuery(''); setPicking(false); }}
                     />
                   )}
@@ -105,33 +107,33 @@ export function ManualEntrySheet({ open, onOpenChange, customerId, startNew, sta
             </div>
 
             <p className="text-[12px] leading-snug text-ink-2">
-              {kind === 'udhaar' ? 'Customer takes goods now, pays later. They confirm or flag it on WhatsApp.'
-                : 'Cash paid at the counter. Recorded as a repayment.'}
+              {kind === 'udhaar' ? t('Customer takes goods now, pays later. They confirm or flag it on WhatsApp.')
+                : t('Cash paid at the counter. Recorded as a repayment.')}
             </p>
 
             {kind === 'udhaar' && (
               <label className="flex h-12 items-center gap-3 rounded-xl border border-line bg-card px-4 focus-within:border-sky focus-within:ring-[3px] focus-within:ring-sky/25">
                 <ShoppingBasket className="size-[18px] shrink-0 text-ink-3" strokeWidth={1.8} aria-hidden="true" />
-                <input id="items" value={items} onChange={(e) => setItems(e.target.value)} placeholder="Items, e.g. 2 kg rice" aria-label="Items" autoComplete="off" className="h-full min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-3" />
+                <input id="items" value={items} onChange={(e) => setItems(e.target.value)} placeholder={t('Items, e.g. 2 kg rice')} aria-label={t('Items')} autoComplete="off" className="h-full min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-3" />
               </label>
             )}
             {/* Amount: Manrope 32/800 with a leading ₹ in ink-2 (spec section 4 "Inputs"). */}
             <label className="flex h-16 items-center gap-2 rounded-xl border border-line bg-card px-4 focus-within:border-sky focus-within:ring-[3px] focus-within:ring-sky/25">
               <span className="font-display text-[24px] font-bold text-ink-2" aria-hidden="true">₹</span>
-              <input id="amount" inputMode="decimal" type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" aria-label="Amount in rupees"
+              <input id="amount" inputMode="decimal" type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" aria-label={t('Amount in rupees')}
                 className="font-display h-full min-w-0 flex-1 bg-transparent text-[32px] font-extrabold tabular-nums text-ink outline-none placeholder:text-ink-3" />
             </label>
 
             <PaytmAlert tone="info">{addOnly
-              ? `Leave the amount empty to add ${newName} with nothing owed.`
-              : `Saved when you tap ${kind === 'cash' ? 'Record payment' : 'Save'}.`}</PaytmAlert>
+              ? t('Leave the amount empty to add {name} with nothing owed.', { name: newName })
+              : t('Saved when you tap {button}.', { button: kind === 'cash' ? t('Record payment') : t('Save') })}</PaytmAlert>
           </div>
         </div>
 
         <div className="shrink-0 px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-2">
           {addOnly
-            ? <PaytmButton full disabled={loading} onClick={() => void saveCustomerOnly()}>Add customer</PaytmButton>
-            : <PaytmButton full disabled={!valid || loading} onClick={() => void save()}>{kind === 'cash' ? 'Record payment' : 'Save'}</PaytmButton>}
+            ? <PaytmButton full disabled={loading} onClick={() => void saveCustomerOnly()}>{t('Add customer')}</PaytmButton>
+            : <PaytmButton full disabled={!valid || loading} onClick={() => void save()}>{kind === 'cash' ? t('Record payment') : t('Save')}</PaytmButton>}
         </div>
       </SheetContent>
     </Sheet>

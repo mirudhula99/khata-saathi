@@ -57,6 +57,14 @@ Known and accepted for the hackathon: no auth beyond the merchant key link; What
 
 WhatsApp is a simulator with the Cloud API wired behind a flag. Payments are a mock provider whose signed webhook goes through the same verification, de-duplication and ledger code a real Paytm callback would. Everything else, the ledger, confirm-before-save, disputes, reminder guardrails, reconciliation, five-language replies, is real.
 
+## Languages (whole app follows "I speak in")
+
+- Frontend: `web/src/lib/i18n.ts` (`useT()` in components, `tNow()` in the store) looks each English string up in the merchant's language; English is the fallback. Dictionaries per area in `web/src/i18n/{shared,saathi,khata,more}.ts`, keys = the exact English strings, placeholders `{name}`. Hindi, Kannada, Tamil, Telugu.
+- Backend: `app/i18n.py` has MERCHANT (Saathi replies), CUSTOMER (WhatsApp messages) and NOTIF (bell items) tables in all five languages; `notifications.build(db, merchant_id, lang)`. `FlowError` texts stay English.
+- Demo rule: in DEMO_MODE, changing the merchant language also sets every customer's language (`services.sync_demo_languages`), so reminders and the customer phone flip with the dropdown. In production each customer keeps the language they chose when joining.
+- Plain pages (`static/customer.js`, `pay.html`, `join.html`) carry their own small dictionaries keyed by the customer's (or shop's) language.
+- Translations are agent-written drafts; have a native speaker read Tamil and Kannada before showing them to a judge who speaks them.
+
 ## Conventions
 
 - Commits: plain messages, author `mirudhula99 <mirudhula99@users.noreply.github.com>` on this machine, no AI co-author lines.

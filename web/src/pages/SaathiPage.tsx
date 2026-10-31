@@ -10,6 +10,7 @@ import { IconTile, PaytmButton, PaytmCard } from '@/components/paytm';
 import { PendingCard } from '@/components/PendingCard';
 import { SaathiCard } from '@/components/SaathiCard';
 import { WhichCustomerDialog } from '@/components/WhichCustomerDialog';
+import { useT } from '@/lib/i18n';
 import { greeting } from '@/lib/ui';
 import { useKhata } from '@/store/useKhata';
 
@@ -19,6 +20,7 @@ import { useKhata } from '@/store/useKhata';
  * → card "Quick actions" (Add by hand, Customer's phone, Reminders, Khata). Speak → read-back → Save. Ask → answer.
  */
 export function SaathiPage({ focusMic = false }: { focusMic?: boolean }) {
+  const t = useT();
   const [params, setParams] = useSearchParams();
   const { state, lang, pending, lastReply, lastWarning, dismiss } = useKhata();
   const [manual, setManual] = useState(false);
@@ -60,19 +62,19 @@ export function SaathiPage({ focusMic = false }: { focusMic?: boolean }) {
                   <SaathiCard
                     text={lastReply}
                     tone={lastWarning === 'error' ? 'error' : 'default'}
-                    actions={<PaytmButton variant="ghost" size="sm" onClick={dismiss} className="px-3">Done</PaytmButton>}
+                    actions={<PaytmButton variant="ghost" size="sm" onClick={dismiss} className="px-3">{t('Done')}</PaytmButton>}
                   />
                 )}
               </>
             }
           />
 
-          {/* Quick actions: only things not already in the tab bar. */}
-          <PaytmCard title="Quick actions">
+          {/* Quick actions: only things not already in the tab bar. Two-line labels keep their line break through whitespace-pre-line. */}
+          <PaytmCard title={t('Quick actions')}>
             <div className="grid grid-cols-3 gap-3">
-              <IconTile icon={PenLine} label="Add by hand" onClick={() => { setManualKind('udhaar'); setManual(true); }} />
-              <IconTile icon={IndianRupee} label={<>Record<br />payment</>} onClick={() => { setManualKind('cash'); setManual(true); }} />
-              <IconTile icon={QrCode} label={<>Join my<br />khata</>} onClick={() => setJoinQr(true)} />
+              <IconTile icon={PenLine} label={t('Add by hand')} onClick={() => { setManualKind('udhaar'); setManual(true); }} />
+              <IconTile icon={IndianRupee} label={<span className="whitespace-pre-line">{t('Record\npayment')}</span>} onClick={() => { setManualKind('cash'); setManual(true); }} />
+              <IconTile icon={QrCode} label={<span className="whitespace-pre-line">{t('Join my\nkhata')}</span>} onClick={() => setJoinQr(true)} />
             </div>
           </PaytmCard>
 

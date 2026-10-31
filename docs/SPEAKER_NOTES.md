@@ -38,6 +38,8 @@ Total: 3 minutes talk + 90 seconds live demo + Q&A. You present. Your friend dri
 | 6 | Back to home. Toast says Lakshmi paid. Chart updates. | "Verified payment, balance zero, reminders stop by themselves. Only a verified payment closes udhaar; cash is noted separately." |
 | 7 | Type or say **"Who owes me money?"** again | "Back to the original three. Every rupee accounted for." |
 
+**Language moment (15 s):** on the home screen change "I speak in" to Tamil. Every screen, the reminder text and Ramesh's phone flip to Tamil. Say: "A Kannada or Tamil shopkeeper never sees English. Same ledger, their language." Switch back to English before you continue.
+
 **Bonus if time (15 s):** type "Ramesh paid 300 cash" → "Which Ramesh?" dialog. "Two Rameshes. It never guesses on money."
 
 **Handoff line:** "[Friend] built this pipeline. He'll take the technical questions."

@@ -1,4 +1,5 @@
 import { PaytmBadge } from '@/components/paytm';
+import { useT } from '@/lib/i18n';
 
 type Kind = 'awaiting' | 'flagged' | 'remindedToday' | 'paused' | 'optedOut' | 'noConsent' | 'settled' | 'verified' | 'cashNoted' | 'removed';
 type Tone = 'sky' | 'success' | 'warning' | 'error' | 'grey';
@@ -17,8 +18,9 @@ const STYLE: Record<Kind, { label: string; tone: Tone }> = {
   removed: { label: 'Removed', tone: 'grey' },
 };
 
-/** Tiny status pill, 11/600 (not uppercase any more). Same `kind` API as before. */
+/** Tiny status pill, 11/600 (not uppercase any more). Same `kind` API as before. The label follows the merchant's language. */
 export function StatusChip({ kind, className }: { kind: Kind; className?: string }) {
+  const t = useT();
   const s = STYLE[kind];
-  return <PaytmBadge tone={s.tone} className={className}>{s.label}</PaytmBadge>;
+  return <PaytmBadge tone={s.tone} className={className}>{t(s.label)}</PaytmBadge>;
 }

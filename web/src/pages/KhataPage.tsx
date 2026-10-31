@@ -8,6 +8,7 @@ import { Affordance, PaytmCard, PaytmChip, TopBarIcon } from '@/components/paytm
 /** Rows shown before a "Show N more" step. Pending lists are short; Settled and All grow only when the merchant asks. */
 const PAGE = 8;
 import { CustomerRow } from '@/components/CustomerRow';
+import { useT } from '@/lib/i18n';
 import { inr } from '@/lib/utils';
 import { useKhata } from '@/store/useKhata';
 
@@ -17,6 +18,7 @@ import { useKhata } from '@/store/useKhata';
  * then a "Settled" card. The ledger is second to the voice.
  */
 export function KhataPage() {
+  const t = useT();
   const state = useKhata((s) => s.state);
   const navigate = useNavigate();
   const [q, setQ] = useState('');
@@ -45,11 +47,11 @@ export function KhataPage() {
   return (
     <AppShell>
       <HeaderBand
-        title="Khata"
+        title={t('Khata')}
         topRight={
           <>
-            <TopBarIcon icon={UserPlus} label="Add customer" onClick={() => navigate('/add?new=1')} />
-            <TopBarIcon icon={Bell} label="Reminders" to="/reminders" className="-mr-2" />
+            <TopBarIcon icon={UserPlus} label={t('Add customer')} onClick={() => navigate('/add?new=1')} />
+            <TopBarIcon icon={Bell} label={t('Reminders')} to="/reminders" className="-mr-2" />
           </>
         }
       />
@@ -59,42 +61,46 @@ export function KhataPage() {
           <div className="flex flex-col gap-3 px-4 pt-1">
             <PaytmCard
               padded={false}
-              title="Who owes you"
-              subtitle={state.totals.total > 0 ? <>{inr(state.totals.total)} pending · {state.totals.owing_count} customer{state.totals.owing_count === 1 ? '' : 's'}</> : 'Nobody owes you right now'}
+              title={t('Who owes you')}
+              subtitle={state.totals.total > 0
+                ? (state.totals.owing_count === 1
+                  ? t('{amount} pending · 1 customer', { amount: inr(state.totals.total) })
+                  : t('{amount} pending · {count} customers', { amount: inr(state.totals.total), count: state.totals.owing_count }))
+                : t('Nobody owes you right now')}
               action={
                 <Affordance onClick={toggleSearch} className="-my-2 min-h-11 px-1">
                   {showSearch ? <X className="size-4" strokeWidth={2} /> : <Search className="size-4" strokeWidth={2} />}
-                  {showSearch ? 'Close' : 'Search'}
+                  {showSearch ? t('Close') : t('Search')}
                 </Affordance>
               }
             >
               {showSearch && (
                 <label className="mx-4 mb-3 flex h-11 items-center gap-2 rounded-full bg-chip px-3.5 text-ink-2 focus-within:ring-2 focus-within:ring-sky">
                   <Search className="size-4 shrink-0" strokeWidth={2} />
-                  <input id="search" value={q} onChange={(e) => { setQ(e.target.value); setShown(PAGE); }} placeholder="Search all customers" autoFocus className="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-3" />
+                  <input id="search" value={q} onChange={(e) => { setQ(e.target.value); setShown(PAGE); }} placeholder={t('Search all customers')} autoFocus className="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-3" />
                 </label>
               )}
               {/* Segmented filter. While a search is typed it applies to everyone, so the chips step aside. */}
               {!query && (
-                <div role="group" aria-label="Show" className="mx-4 mb-3 flex gap-2">
-                  <PaytmChip selected={filter === 'pending'} onClick={() => pick('pending')} className="h-9 px-3.5 text-[13px]">Pending · {pendingAll.length}</PaytmChip>
-                  <PaytmChip selected={filter === 'settled'} onClick={() => pick('settled')} className="h-9 px-3.5 text-[13px]">Settled · {settledAll.length}</PaytmChip>
-                  <PaytmChip selected={filter === 'all'} onClick={() => pick('all')} className="h-9 px-3.5 text-[13px]">All</PaytmChip>
+                <div role="group" aria-label={t('Show')} className="mx-4 mb-3 flex gap-2">
+                  <PaytmChip selected={filter === 'pending'} onClick={() => pick('pending')} className="h-9 px-3.5 text-[13px]">{t('Pending · {count}', { count: pendingAll.length })}</PaytmChip>
+                  <PaytmChip selected={filter === 'settled'} onClick={() => pick('settled')} className="h-9 px-3.5 text-[13px]">{t('Settled · {count}', { count: settledAll.length })}</PaytmChip>
+                  <PaytmChip selected={filter === 'all'} onClick={() => pick('all')} className="h-9 px-3.5 text-[13px]">{t('All')}</PaytmChip>
                 </div>
               )}
               {list.length === 0 && (
                 <div className="px-4 pb-5 pt-2 text-center text-[13px] text-ink-2">
-                  {query ? `No customer matches "${q.trim()}".` : filter === 'pending' ? 'Nobody owes you anything.' : filter === 'settled' ? 'Nobody is settled yet.' : 'No customers yet.'}
+                  {query ? t('No customer matches "{query}".', { query: q.trim() }) : filter === 'pending' ? t('Nobody owes you anything.') : filter === 'settled' ? t('Nobody is settled yet.') : t('No customers yet.')}
                 </div>
               )}
               {visible.map((c, i) => <CustomerRow key={c.id} c={c} last={i === visible.length - 1} quiet={c.balance <= 0} />)}
               {hidden > 0 && (
                 <button type="button" onClick={() => setShown((n) => n + PAGE)} className="flex h-12 w-full items-center justify-center gap-1 border-t border-line text-[14px] font-semibold text-sky-ink active:bg-chip">
-                  Show {Math.min(hidden, PAGE)} more <ChevronDown className="size-4" strokeWidth={2} />
+                  {t('Show {n} more', { n: Math.min(hidden, PAGE) })} <ChevronDown className="size-4" strokeWidth={2} />
                 </button>
               )}
             </PaytmCard>
-            <p className="px-2 pt-1 text-center text-[12px] text-ink-2">Tap a customer for the actual record. No score, you decide.</p>
+            <p className="px-2 pt-1 text-center text-[12px] text-ink-2">{t('Tap a customer for the actual record. No score, you decide.')}</p>
           </div>
         )}
       </Scroll>

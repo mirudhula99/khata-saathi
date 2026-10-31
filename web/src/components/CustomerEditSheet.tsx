@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Grabber, PaytmAlert, PaytmButton, TopBarIcon } from '@/components/paytm';
+import { useT } from '@/lib/i18n';
 import type { CustomerPatch, CustomerRowData } from '@/lib/types';
 import { inr } from '@/lib/utils';
 import { useKhata } from '@/store/useKhata';
@@ -13,6 +14,7 @@ import { useKhata } from '@/store/useKhata';
  * entry, so the history is never rewritten.
  */
 export function CustomerEditSheet({ customer, onOpenChange }: { customer: CustomerRowData | null; onOpenChange: (o: boolean) => void }) {
+  const t = useT();
   const { patchCustomer, loading } = useKhata();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -34,9 +36,9 @@ export function CustomerEditSheet({ customer, onOpenChange }: { customer: Custom
   const save = async (e: FormEvent) => {
     e.preventDefault();
     if (!customer) return;
-    if (!name.trim()) { setError('Enter the customer’s name.'); return; }
-    if (phone.trim() && phone.replace(/\D/g, '').length < 10) { setError('Enter a 10-digit mobile number, or leave it empty.'); return; }
-    if (balance.trim() === '' || !Number.isInteger(owed) || owed < 0) { setError('Enter what they owe in whole rupees (0 if nothing).'); return; }
+    if (!name.trim()) { setError(t('Enter the customer’s name.')); return; }
+    if (phone.trim() && phone.replace(/\D/g, '').length < 10) { setError(t('Enter a 10-digit mobile number, or leave it empty.')); return; }
+    if (balance.trim() === '' || !Number.isInteger(owed) || owed < 0) { setError(t('Enter what they owe in whole rupees (0 if nothing).')); return; }
     const patch: CustomerPatch = {};
     if (name.trim() !== customer.name) patch.name = name.trim();
     if (phone.trim() !== (customer.phone ?? '')) patch.phone = phone.trim();
@@ -51,25 +53,25 @@ export function CustomerEditSheet({ customer, onOpenChange }: { customer: Custom
       <SheetContent side="bottom" showCloseButton={false} className="ks-sheet mx-auto max-h-[88dvh] w-full max-w-[390px] gap-0 rounded-t-3xl p-0">
         <Grabber />
         <div className="flex h-12 shrink-0 items-center justify-between px-3">
-          <TopBarIcon icon={X} label="Close" onClick={() => onOpenChange(false)} />
-          <SheetTitle>Edit customer</SheetTitle>
+          <TopBarIcon icon={X} label={t('Close')} onClick={() => onOpenChange(false)} />
+          <SheetTitle>{t('Edit customer')}</SheetTitle>
           <span className="size-10" aria-hidden="true" />
         </div>
-        <SheetDescription className="sr-only">Change the customer's name, mobile number, unique label, and how much they owe.</SheetDescription>
+        <SheetDescription className="sr-only">{t("Change the customer's name, mobile number, unique label, and how much they owe.")}</SheetDescription>
 
         <form onSubmit={(e) => void save(e)} className="flex min-h-0 flex-1 flex-col">
           <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-4 pt-1">
-            <label className="text-[12px] font-medium text-ink-2" htmlFor="custName">Name</label>
+            <label className="text-[12px] font-medium text-ink-2" htmlFor="custName">{t('Name')}</label>
             <Input id="custName" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} autoComplete="off" />
 
-            <label className="mt-1 text-[12px] font-medium text-ink-2" htmlFor="custPhone">Mobile number</label>
-            <Input id="custPhone" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" maxLength={20} autoComplete="off" placeholder="Optional" />
+            <label className="mt-1 text-[12px] font-medium text-ink-2" htmlFor="custPhone">{t('Mobile number')}</label>
+            <Input id="custPhone" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" maxLength={20} autoComplete="off" placeholder={t('Optional')} />
 
-            <label className="mt-1 text-[12px] font-medium text-ink-2" htmlFor="custNote">Unique label</label>
-            <Input id="custNote" value={note} onChange={(e) => setNote(e.target.value)} maxLength={120} autoComplete="off" placeholder="e.g. Gandhi Street, Teacher, Bus stand" />
-            <p className="text-[12px] leading-snug text-ink-2">Tells two customers with the same name apart, like Ramesh (Teacher) and Ramesh (Gandhi Street).</p>
+            <label className="mt-1 text-[12px] font-medium text-ink-2" htmlFor="custNote">{t('Unique label')}</label>
+            <Input id="custNote" value={note} onChange={(e) => setNote(e.target.value)} maxLength={120} autoComplete="off" placeholder={t('e.g. Gandhi Street, Teacher, Bus stand')} />
+            <p className="text-[12px] leading-snug text-ink-2">{t('Tells two customers with the same name apart, like Ramesh (Teacher) and Ramesh (Gandhi Street).')}</p>
 
-            <label className="mt-1 text-[12px] font-medium text-ink-2" htmlFor="custBalance">Amount owed</label>
+            <label className="mt-1 text-[12px] font-medium text-ink-2" htmlFor="custBalance">{t('Amount owed')}</label>
             <label className="flex h-14 items-center gap-2 rounded-xl border border-line bg-card px-4 focus-within:border-sky focus-within:ring-[3px] focus-within:ring-sky/25">
               <span className="font-display text-[20px] font-bold text-ink-2" aria-hidden="true">₹</span>
               <input id="custBalance" inputMode="numeric" type="number" min={0} step={1} value={balance} onChange={(e) => setBalance(e.target.value)}
@@ -77,15 +79,19 @@ export function CustomerEditSheet({ customer, onOpenChange }: { customer: Custom
             </label>
             {balanceChanged && customer && Number.isInteger(owed) && owed >= 0 && (
               <PaytmAlert tone="info">
-                {inr(customer.balance)} → {inr(owed)}. A “balance corrected” entry of {owed > customer.balance ? '+' : '−'}{inr(Math.abs(owed - customer.balance))} is added; past entries stay as they are.
+                {t('{from} → {to}. A “balance corrected” entry of {delta} is added; past entries stay as they are.', {
+                  from: inr(customer.balance),
+                  to: inr(owed),
+                  delta: `${owed > customer.balance ? '+' : '−'}${inr(Math.abs(owed - customer.balance))}`,
+                })}
               </PaytmAlert>
             )}
             {error && <p className="text-[12px] text-error-ink">{error}</p>}
           </div>
 
           <div className="grid shrink-0 grid-cols-2 gap-2 px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-2">
-            <PaytmButton variant="ghost" full onClick={() => onOpenChange(false)}>Cancel</PaytmButton>
-            <PaytmButton type="submit" variant="primary" full disabled={loading}>Save</PaytmButton>
+            <PaytmButton variant="ghost" full onClick={() => onOpenChange(false)}>{t('Cancel')}</PaytmButton>
+            <PaytmButton type="submit" variant="primary" full disabled={loading}>{t('Save')}</PaytmButton>
           </div>
         </form>
       </SheetContent>

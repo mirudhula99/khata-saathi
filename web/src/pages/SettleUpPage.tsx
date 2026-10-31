@@ -5,6 +5,7 @@ import { AppShell, CompactHeader, Scroll } from '@/components/AppShell';
 import { PaytmAlert, PaytmButton, PaytmCard, PaytmChip, RowAvatar } from '@/components/paytm';
 import { PendingCard } from '@/components/PendingCard';
 import { WhichCustomerDialog } from '@/components/WhichCustomerDialog';
+import { useT } from '@/lib/i18n';
 import { cn, inr } from '@/lib/utils';
 import { useKhata } from '@/store/useKhata';
 
@@ -16,6 +17,7 @@ import { useKhata } from '@/store/useKhata';
  * A link payment closes udhaar only when the verified payment event arrives; cash is recorded after the merchant's yes.
  */
 export function SettleUpPage() {
+  const t = useT();
   const { id = '' } = useParams<{ id: string }>();
   const cid = Number(id);
   const navigate = useNavigate();
@@ -38,18 +40,18 @@ export function SettleUpPage() {
     if (!c || !valid) return;
     setSent(doneSeq);
     // This page already knows the customer, so its id goes with the sentence: the server never matches by name,
-    // and a payment can't land on the other Ramesh.
+    // and a payment can't land on the other Ramesh. The sentence is for the parser, so it stays in English.
     await formEntry(method === 'cash' ? `${c.name} paid ${n} cash` : `Ask ${c.name} for ${n}`, { amount: n, customerId: cid });
   };
 
   const quick = [balance, Math.round(balance / 2), 100].filter((v, i, a) => v > 0 && v <= balance && a.indexOf(v) === i);
-  const methods: { value: 'link' | 'cash'; label: string }[] = [{ value: 'link', label: 'Paytm link' }, { value: 'cash', label: 'Cash' }];
+  const methods: { value: 'link' | 'cash'; label: string }[] = [{ value: 'link', label: t('Paytm link') }, { value: 'cash', label: t('Cash') }];
   // Chips are 28px by spec; these are the screen's main controls, so they get a 44px tap target (design-system: never under 44).
   const bigChip = 'h-11 min-w-0 flex-1 justify-center text-[13px]';
 
   return (
     <AppShell tabs={false}>
-      <CompactHeader title="Record payment" left={<button type="button" aria-label="Close" onClick={() => navigate(`/khata/${id}`)} className="-ml-1 grid size-11 place-items-center rounded-full text-blue active:bg-chip"><X className="size-6" strokeWidth={1.8} /></button>} />
+      <CompactHeader title={t('Record payment')} left={<button type="button" aria-label={t('Close')} onClick={() => navigate(`/khata/${id}`)} className="-ml-1 grid size-11 place-items-center rounded-full text-blue active:bg-chip"><X className="size-6" strokeWidth={1.8} /></button>} />
       <Scroll className="pb-6">
         {c && (
           <div className="flex flex-col gap-3 px-4 pt-3">
@@ -58,22 +60,22 @@ export function SettleUpPage() {
                 <RowAvatar name={c.name} />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[15px] font-semibold text-ink">{c.name}</div>
-                  <div className="truncate text-[13px] text-ink-2">{c.note ? c.note : `${inr(balance)} pending`}</div>
+                  <div className="truncate text-[13px] text-ink-2">{c.note ? c.note : t('{amount} pending', { amount: inr(balance) })}</div>
                 </div>
               </div>
 
               <label htmlFor="amount" className="mt-4 flex h-16 items-center justify-center gap-1 rounded-xl border border-line bg-card px-4 focus-within:border-sky focus-within:ring-2 focus-within:ring-sky/30">
                 <span className="font-display text-[24px] font-bold text-ink-2">₹</span>
-                <input id="amount" inputMode="decimal" type="number" min={1} max={balance} value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus aria-label="Amount in rupees"
+                <input id="amount" inputMode="decimal" type="number" min={1} max={balance} value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus aria-label={t('Amount in rupees')}
                   className="font-display w-full min-w-0 max-w-[220px] bg-transparent text-center text-[32px] font-extrabold tabular-nums text-ink outline-none" />
               </label>
 
               <PaytmAlert
                 tone={tooMuch ? 'error' : 'info'}
                 className="mt-3"
-                title={<span className="font-display tabular-nums"><span className="text-ink">{inr(n)}</span> <span className="font-medium text-ink-2">of {inr(balance)} ·</span> <span className={cn(left === 0 ? 'text-paid' : 'text-owed')}>{inr(left)} left</span></span>}
+                title={<span className="font-display tabular-nums"><span className="text-ink">{inr(n)}</span> <span className="font-medium text-ink-2">{t('of {amount} ·', { amount: inr(balance) })}</span> <span className={cn(left === 0 ? 'text-paid' : 'text-owed')}>{t('{amount} left', { amount: inr(left) })}</span></span>}
               >
-                {tooMuch ? 'More than the balance. The ledger does the maths, so this will not save.' : null}
+                {tooMuch ? t('More than the balance. The ledger does the maths, so this will not save.') : null}
               </PaytmAlert>
 
               {quick.length > 0 && (
@@ -85,23 +87,23 @@ export function SettleUpPage() {
               )}
             </PaytmCard>
 
-            <PaytmCard title="Paid how" subtitle="Link payments verify themselves. Cash is noted after your yes.">
-              <div id="method" role="group" aria-label="Payment method" className="flex gap-2">
+            <PaytmCard title={t('Paid how')} subtitle={t('Link payments verify themselves. Cash is noted after your yes.')}>
+              <div id="method" role="group" aria-label={t('Payment method')} className="flex gap-2">
                 {methods.map((o) => (
                   <PaytmChip key={o.value} selected={method === o.value} icon={o.value === 'link' ? Link2 : HandCoins} onClick={() => setMethod(o.value)} className={bigChip}>{o.label}</PaytmChip>
                 ))}
               </div>
               <p className="mt-3 text-[12px] leading-snug text-ink-2">
                 {method === 'link'
-                  ? `Sends ${c.name} a payment link for ${inr(n)} on WhatsApp. The balance changes only when the verified payment arrives.${c.consent !== 'granted' ? ' Needs WhatsApp consent first.' : ''}`
-                  : 'Cash paid at the counter. Recorded when you tap Note cash.'}
+                  ? [t('Sends {name} a payment link for {amount} on WhatsApp. The balance changes only when the verified payment arrives.', { name: c.name, amount: inr(n) }), c.consent !== 'granted' ? t('Needs WhatsApp consent first.') : ''].filter(Boolean).join(' ')
+                  : t('Cash paid at the counter. Recorded when you tap Note cash.')}
               </p>
             </PaytmCard>
 
             <div className="pt-1">
               {pending?.state === 'awaiting_confirm' ? <PendingCard /> : (
                 <PaytmButton variant="primary" full icon={method === 'link' ? Link2 : HandCoins} disabled={!valid || loading} onClick={() => void go()}>
-                  {method === 'link' ? 'Send payment link' : 'Note cash'}
+                  {method === 'link' ? t('Send payment link') : t('Note cash')}
                 </PaytmButton>
               )}
             </div>

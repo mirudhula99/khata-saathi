@@ -3,10 +3,43 @@ import { api, h } from "/static/common.js";
 
 const $ = (s) => document.querySelector(s);
 const PAY_LABEL = { "en-IN": "Pay now", "hi-IN": "अभी भुगतान करें", "kn-IN": "ಈಗ ಪಾವತಿಸಿ", "ta-IN": "இப்போது செலுத்து", "te-IN": "ఇప్పుడు చెల్లించండి" };
+// Page chrome in the customer's language (view.customer.language). Message bodies and buttons arrive already
+// translated from the server. STOP / START stay as they are: WhatsApp keywords.
+const UI = {
+  "en-IN": {
+    account: "Business account · WhatsApp", sandbox: "· sandbox · no real money", you: "You are",
+    empty: "No messages yet. Record udhaar for this customer in the shop app, or send a reminder.",
+    replies: "Replies go back to the shop.", stopped: "You stopped reminders from this shop.", notDelivered: "not delivered",
+  },
+  "hi-IN": {
+    account: "बिज़नेस अकाउंट · WhatsApp", sandbox: "· सैंडबॉक्स · असली पैसा नहीं", you: "आप हैं",
+    empty: "अभी कोई संदेश नहीं। दुकान ऐप में इस ग्राहक का उधार दर्ज करें, या रिमाइंडर भेजें।",
+    replies: "जवाब दुकान को जाते हैं।", stopped: "आपने इस दुकान के रिमाइंडर बंद कर दिए।", notDelivered: "नहीं पहुँचा",
+  },
+  "kn-IN": {
+    account: "ವ್ಯಾಪಾರ ಖಾತೆ · WhatsApp", sandbox: "· ಸ್ಯಾಂಡ್‌ಬಾಕ್ಸ್ · ನಿಜವಾದ ಹಣವಿಲ್ಲ", you: "ನೀವು",
+    empty: "ಇನ್ನೂ ಸಂದೇಶಗಳಿಲ್ಲ. ಅಂಗಡಿ ಆ್ಯಪ್‌ನಲ್ಲಿ ಈ ಗ್ರಾಹಕರಿಗೆ ಸಾಲ ದಾಖಲಿಸಿ, ಅಥವಾ ನೆನಪು ಕಳುಹಿಸಿ.",
+    replies: "ಉತ್ತರಗಳು ಅಂಗಡಿಗೆ ಹೋಗುತ್ತವೆ.", stopped: "ಈ ಅಂಗಡಿಯ ನೆನಪುಗಳನ್ನು ನೀವು ನಿಲ್ಲಿಸಿದ್ದೀರಿ.", notDelivered: "ತಲುಪಿಲ್ಲ",
+  },
+  "ta-IN": {
+    account: "வணிகக் கணக்கு · WhatsApp", sandbox: "· சாண்ட்பாக்ஸ் · உண்மைப் பணம் இல்லை", you: "நீங்கள்",
+    empty: "இன்னும் செய்திகள் இல்லை. கடை ஆப்பில் இந்த வாடிக்கையாளருக்கு கடன் பதிவு செய்யுங்கள், அல்லது நினைவூட்டல் அனுப்புங்கள்.",
+    replies: "பதில்கள் கடைக்குச் செல்லும்.", stopped: "இந்தக் கடையின் நினைவூட்டல்களை நீங்கள் நிறுத்தினீர்கள்.", notDelivered: "சேரவில்லை",
+  },
+  "te-IN": {
+    account: "వ్యాపార ఖాతా · WhatsApp", sandbox: "· శాండ్‌బాక్స్ · నిజమైన డబ్బు కాదు", you: "మీరు",
+    empty: "ఇంకా మెసేజ్‌లు లేవు. షాప్ యాప్‌లో ఈ కస్టమర్‌కు అప్పు నమోదు చేయండి, లేదా గుర్తు పంపండి.",
+    replies: "జవాబులు షాప్‌కి వెళ్తాయి.", stopped: "ఈ షాప్ గుర్తులను మీరు ఆపేశారు.", notDelivered: "చేరలేదు",
+  },
+};
 const params = new URLSearchParams(location.search);
 let customerId = params.get("id");
 let view = null;
 let source = null;
+
+function ui() {
+  return UI[view?.customer?.language] || UI["en-IN"];
+}
 
 async function loadList() {
   const { customers } = await api("/api/customer-view");
@@ -38,17 +71,21 @@ function answeredButtons() {
 }
 
 function render() {
+  const t = ui();
+  document.documentElement.lang = (view.customer.language || "en-IN").split("-")[0];
   $("#shop").textContent = view.shop;
   $(".wa-avatar").textContent = (view.shop || "S").trim().charAt(0).toUpperCase();
+  $("#accountLine").textContent = t.account;
+  $("#sandboxLine").textContent = t.sandbox;
+  $("#youAre").textContent = t.you;
   const optedOut = view.customer.consent === "opted_out";
   const stop = $("#stopBtn");
   stop.textContent = optedOut ? "START" : "STOP";
-  $("#footNote").textContent = optedOut ? "You stopped reminders from this shop." : "Replies go back to the shop.";
+  $("#footNote").textContent = optedOut ? t.stopped : t.replies;
 
   const chat = $("#chat");
   if (!view.messages.length) {
-    chat.replaceChildren(h("p", { class: "empty-chat" },
-      "No messages yet. Record udhaar for this customer in the shop app, or send a reminder."));
+    chat.replaceChildren(h("p", { class: "empty-chat" }, t.empty));
     return;
   }
   const spent = answeredButtons();
@@ -74,7 +111,7 @@ function render() {
     }
     return h("div", { class: `bubble ${m.direction}${rows.length ? " has-actions" : ""}` },
       body,
-      h("time", {}, m.status === "failed" ? `${time}, not delivered` : time),
+      h("time", {}, m.status === "failed" ? `${time}, ${t.notDelivered}` : time),
       rows.length ? h("div", { class: "wa-actions" }, ...rows) : null);
   }));
   window.scrollTo({ top: document.body.scrollHeight });

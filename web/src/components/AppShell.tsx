@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { BellRing, BookOpen, CalendarPlus, LayoutGrid, Mic } from 'lucide-react';
 import { PaytmCard, TopBar, paytmChipClass } from '@/components/paytm';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 /**
@@ -20,6 +21,7 @@ export function AppShell({ children, tabs = true, className }: { children: React
 }
 
 function TabBar() {
+  const t = useT();
   const item = (to: string, label: string, Icon: typeof BookOpen) => (
     <NavLink to={to} end={to === '/'} className={({ isActive }) => cn('flex flex-col items-center justify-center gap-0.5 py-1.5 text-[11px] font-medium', isActive ? 'text-sky' : 'text-ink-2')}>
       {({ isActive }) => (<><Icon className="size-6" strokeWidth={isActive ? 2.1 : 1.7} /> {label}</>)}
@@ -27,10 +29,10 @@ function TabBar() {
   );
   return (
     <nav className="relative z-10 grid shrink-0 grid-cols-4 bg-card pb-[max(env(safe-area-inset-bottom),6px)] pt-0.5 shadow-up">
-      {item('/', 'Saathi', Mic)}
-      {item('/khata', 'Khata', BookOpen)}
-      {item('/reminders', 'Reminders', BellRing)}
-      {item('/account', 'More', LayoutGrid)}
+      {item('/', t('Saathi'), Mic)}
+      {item('/khata', t('Khata'), BookOpen)}
+      {item('/reminders', t('Reminders'), BellRing)}
+      {item('/account', t('More'), LayoutGrid)}
     </nav>
   );
 }
@@ -107,13 +109,14 @@ export function demoDate(offsetDays: number): string {
 
 /** Demo clock chip (PaytmChip style) showing the current demo date; the "+3 days" sky pill appears only where `onForward` is passed. */
 export function DayChip({ offsetDays, onForward, onBand, className }: { offsetDays: number | undefined; onForward?: () => void; onBand?: boolean; className?: string }) {
+  const t = useT();
   if (offsetDays === undefined) return null;
   return (
     <span className={cn(paytmChipClass(false, onBand ? 'bg-card shadow-card' : undefined), onForward && 'pr-0.5', className)}>
       {demoDate(offsetDays)}
       {onForward && (
-        <button type="button" onClick={onForward} aria-label="Move time forward 3 days" className="ml-1 inline-flex h-6 items-center gap-1 rounded-full bg-sky px-2 text-[11px] font-bold text-white active:scale-[0.98]">
-          <CalendarPlus className="size-3.5" /> +3 days
+        <button type="button" onClick={onForward} aria-label={t('Move time forward 3 days')} className="ml-1 inline-flex h-6 items-center gap-1 rounded-full bg-sky px-2 text-[11px] font-bold text-white active:scale-[0.98]">
+          <CalendarPlus className="size-3.5" /> {t('+3 days')}
         </button>
       )}
     </span>

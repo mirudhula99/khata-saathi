@@ -1,4 +1,5 @@
 import { useState, type PointerEvent, type ReactNode } from 'react';
+import { useT } from '@/lib/i18n';
 import { cn, inr } from '@/lib/utils';
 
 /**
@@ -26,29 +27,30 @@ function Tooltip({ tip }: { tip: Tip }) {
 
 /** Horizontal bars: who owes how much. Single series, so no legend; the card title names it. */
 export function OwedBars({ rows }: { rows: { name: string; balance: number; days: number }[] }) {
+  const t = useT();
   const [tip, setTip] = useState<Tip>(null);
   const [table, setTable] = useState(false);
   const top = rows.slice(0, 5);
   const max = Math.max(1, ...top.map((r) => r.balance));
-  if (top.length === 0) return <p className="text-[13px] text-ink-2">Nobody owes you right now.</p>;
+  if (top.length === 0) return <p className="text-[13px] text-ink-2">{t('Nobody owes you right now.')}</p>;
   return (
     <div className="relative">
       <Tooltip tip={tip} />
       {table ? (
         <table className="w-full text-[13px]">
-          <thead><tr className="text-left text-[11px] uppercase tracking-wider text-ink-2"><th className="py-1 font-semibold">Customer</th><th className="py-1 text-right font-semibold">Pending</th><th className="py-1 text-right font-semibold">Days</th></tr></thead>
+          <thead><tr className="text-left text-[11px] uppercase tracking-wider text-ink-2"><th className="py-1 font-semibold">{t('Customer')}</th><th className="py-1 text-right font-semibold">{t('Pending')}</th><th className="py-1 text-right font-semibold">{t('Days')}</th></tr></thead>
           <tbody>{top.map((r) => <tr key={r.name + r.days} className="border-t border-line"><td className="py-1.5">{r.name}</td><td className="py-1.5 text-right tabular-nums">{inr(r.balance)}</td><td className="py-1.5 text-right tabular-nums">{r.days}</td></tr>)}</tbody>
         </table>
       ) : (
         <div className="flex flex-col gap-2.5">
           {top.map((r) => (
             <div key={r.name + r.days} className="grid grid-cols-[72px_1fr_auto] items-center gap-2">
-              <div className="min-w-0"><div className="truncate text-[13px] font-medium text-ink">{r.name}</div><div className="text-[11px] text-ink-2">{r.days} days</div></div>
+              <div className="min-w-0"><div className="truncate text-[13px] font-medium text-ink">{r.name}</div><div className="text-[11px] text-ink-2">{t('{days} days', { days: r.days })}</div></div>
               <div className="h-4 rounded-r bg-chip" aria-hidden="true">
-                <button type="button" tabIndex={0} aria-label={`${r.name} owes ${inr(r.balance)}, pending ${r.days} days`}
+                <button type="button" tabIndex={0} aria-label={t('{name} owes {amount}, pending {days} days', { name: r.name, amount: inr(r.balance), days: r.days })}
                   className="block h-4 min-w-1 rounded-r hover:brightness-110 focus-visible:outline-2 focus-visible:outline-sky"
                   style={{ width: `${(r.balance / max) * 100}%`, background: BLUE }}
-                  onPointerEnter={(e) => { const b = (e.currentTarget.parentElement?.parentElement as HTMLElement).getBoundingClientRect(); const p = (e.currentTarget.closest('.relative') as HTMLElement).getBoundingClientRect(); setTip({ x: e.clientX - p.left, y: b.top - p.top, body: <><b>{inr(r.balance)}</b> · {r.name} · {r.days} days</> }); }}
+                  onPointerEnter={(e) => { const b = (e.currentTarget.parentElement?.parentElement as HTMLElement).getBoundingClientRect(); const p = (e.currentTarget.closest('.relative') as HTMLElement).getBoundingClientRect(); setTip({ x: e.clientX - p.left, y: b.top - p.top, body: <><b>{inr(r.balance)}</b> · {r.name} · {t('{days} days', { days: r.days })}</> }); }}
                   onPointerLeave={() => setTip(null)} />
               </div>
               <div className="text-right text-[13px] font-semibold tabular-nums text-ink">{inr(r.balance)}</div>
@@ -56,13 +58,14 @@ export function OwedBars({ rows }: { rows: { name: string; balance: number; days
           ))}
         </div>
       )}
-      <button type="button" onClick={() => setTable((t) => !t)} className="mt-2 text-[12px] font-semibold text-sky-ink">{table ? 'Show bars' : 'Show table'}</button>
+      <button type="button" onClick={() => setTable((v) => !v)} className="mt-2 text-[12px] font-semibold text-sky-ink">{table ? t('Show bars') : t('Show table')}</button>
     </div>
   );
 }
 
 /** Grouped columns: udhaar given vs money received, per day for the last 7 days. Two series, so a legend. */
 export function WeekColumns({ days }: { days: { date: string; label: string; given: number; received: number }[] }) {
+  const t = useT();
   const [tip, setTip] = useState<Tip>(null);
   const [table, setTable] = useState(false);
   const W = 340, H = 150, padL = 34, padR = 6, padT = 14, padB = 22;
@@ -82,7 +85,7 @@ export function WeekColumns({ days }: { days: { date: string; label: string; giv
   const show = (e: PointerEvent<SVGElement>, d: (typeof days)[number]) => {
     const host = (e.currentTarget.closest('.relative') as HTMLElement).getBoundingClientRect();
     const r = e.currentTarget.getBoundingClientRect();
-    setTip({ x: r.left + r.width / 2 - host.left, y: r.top - host.top, body: <><b>{inr(d.received)}</b> received · <b>{inr(d.given)}</b> given<br /><span className="opacity-80">{d.label} {d.date.slice(8)}/{d.date.slice(5, 7)}</span></> });
+    setTip({ x: r.left + r.width / 2 - host.left, y: r.top - host.top, body: <><b>{inr(d.received)}</b> {t('received')} · <b>{inr(d.given)}</b> {t('given')}<br /><span className="opacity-80">{d.label} {d.date.slice(8)}/{d.date.slice(5, 7)}</span></> });
   };
 
   return (
@@ -90,20 +93,20 @@ export function WeekColumns({ days }: { days: { date: string; label: string; giv
       <Tooltip tip={tip} />
       {/* Legend: always present for two series; text in ink tokens, the swatch carries the colour. */}
       <div className="mb-1 flex items-center gap-4 text-[12px] text-ink-2">
-        <span className="flex items-center gap-1.5"><span className="inline-block size-2.5 rounded-sm" style={{ background: AMBER }} aria-hidden="true" /> Udhaar given</span>
-        <span className="flex items-center gap-1.5"><span className="inline-block size-2.5 rounded-sm" style={{ background: BLUE }} aria-hidden="true" /> Money received</span>
+        <span className="flex items-center gap-1.5"><span className="inline-block size-2.5 rounded-sm" style={{ background: AMBER }} aria-hidden="true" /> {t('Udhaar given')}</span>
+        <span className="flex items-center gap-1.5"><span className="inline-block size-2.5 rounded-sm" style={{ background: BLUE }} aria-hidden="true" /> {t('Money received')}</span>
       </div>
       {table ? (
         <table className="w-full text-[13px]">
-          <thead><tr className="text-left text-[11px] uppercase tracking-wider text-ink-2"><th className="py-1 font-semibold">Day</th><th className="py-1 text-right font-semibold">Given</th><th className="py-1 text-right font-semibold">Received</th></tr></thead>
+          <thead><tr className="text-left text-[11px] uppercase tracking-wider text-ink-2"><th className="py-1 font-semibold">{t('Day')}</th><th className="py-1 text-right font-semibold">{t('Given')}</th><th className="py-1 text-right font-semibold">{t('Received')}</th></tr></thead>
           <tbody>{days.map((d) => <tr key={d.date} className="border-t border-line"><td className="py-1.5">{d.label} {d.date.slice(8)}/{d.date.slice(5, 7)}</td><td className="py-1.5 text-right tabular-nums">{inr(d.given)}</td><td className="py-1.5 text-right tabular-nums">{inr(d.received)}</td></tr>)}</tbody>
         </table>
       ) : (
-        <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="Udhaar given and money received per day, last 7 days" className="block overflow-visible">
-          {ticks.map((t) => (
-            <g key={t}>
-              <line x1={padL} x2={W - padR} y1={y(t)} y2={y(t)} stroke="var(--p-line)" strokeWidth={1} />
-              <text x={padL - 6} y={y(t) + 3.5} textAnchor="end" fontSize={10} fill="var(--p-ink-3)" style={{ fontVariantNumeric: 'tabular-nums' }}>{compact(t)}</text>
+        <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={t('Udhaar given and money received per day, last 7 days')} className="block overflow-visible">
+          {ticks.map((tick) => (
+            <g key={tick}>
+              <line x1={padL} x2={W - padR} y1={y(tick)} y2={y(tick)} stroke="var(--p-line)" strokeWidth={1} />
+              <text x={padL - 6} y={y(tick) + 3.5} textAnchor="end" fontSize={10} fill="var(--p-ink-3)" style={{ fontVariantNumeric: 'tabular-nums' }}>{compact(tick)}</text>
             </g>
           ))}
           {days.map((d, i) => {
@@ -115,7 +118,7 @@ export function WeekColumns({ days }: { days: { date: string; label: string; giv
               <path d={`M${x},${y(0)} v${-(Math.max(0, h - r))} a${r},${r} 0 0 1 ${r},${-r} h${bar - 2 * r} a${r},${r} 0 0 1 ${r},${r} v${Math.max(0, h - r)} z`} fill={fill} />
             );
             return (
-              <g key={d.date} tabIndex={0} aria-label={`${d.label}: ${inr(d.given)} given, ${inr(d.received)} received`} className="cursor-default outline-none hover:brightness-110 focus-visible:[&>rect]:stroke-sky"
+              <g key={d.date} tabIndex={0} aria-label={t('{day}: {given} given, {received} received', { day: d.label, given: inr(d.given), received: inr(d.received) })} className="cursor-default outline-none hover:brightness-110 focus-visible:[&>rect]:stroke-sky"
                 onPointerEnter={(e) => show(e, d)} onPointerMove={(e) => show(e, d)} onPointerLeave={() => setTip(null)}>
                 <rect x={gx - group / 2} y={padT} width={group} height={innerH} fill="transparent" />
                 {col(xg, hG, AMBER)}
@@ -123,15 +126,15 @@ export function WeekColumns({ days }: { days: { date: string; label: string; giv
                 {/* Direct labels only on the latest non-zero value of each series. */}
                 {lastGiven?.date === d.date && <text x={xg + bar / 2} y={y(d.given) - 4} textAnchor="middle" fontSize={10} fontWeight={600} fill="var(--p-ink)">{compact(d.given)}</text>}
                 {lastReceived?.date === d.date && <text x={xr + bar / 2} y={y(d.received) - 4} textAnchor="middle" fontSize={10} fontWeight={600} fill="var(--p-ink)">{compact(d.received)}</text>}
-                <text x={gx} y={H - 6} textAnchor="middle" fontSize={10} fill={i === days.length - 1 ? 'var(--p-ink)' : 'var(--p-ink-2)'} fontWeight={i === days.length - 1 ? 600 : 400}>{i === days.length - 1 ? 'Today' : d.label}</text>
+                <text x={gx} y={H - 6} textAnchor="middle" fontSize={10} fill={i === days.length - 1 ? 'var(--p-ink)' : 'var(--p-ink-2)'} fontWeight={i === days.length - 1 ? 600 : 400}>{i === days.length - 1 ? t('Today') : d.label}</text>
               </g>
             );
           })}
         </svg>
       )}
       <div className={cn('mt-1 flex items-center justify-between text-[12px]', quiet ? 'text-ink-2' : 'text-ink-2')}>
-        <span>{quiet ? 'No activity yet this week.' : ''}</span>
-        <button type="button" onClick={() => setTable((t) => !t)} className="font-semibold text-sky-ink">{table ? 'Show chart' : 'Show table'}</button>
+        <span>{quiet ? t('No activity yet this week.') : ''}</span>
+        <button type="button" onClick={() => setTable((v) => !v)} className="font-semibold text-sky-ink">{table ? t('Show chart') : t('Show table')}</button>
       </div>
     </div>
   );

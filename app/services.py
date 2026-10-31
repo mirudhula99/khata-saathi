@@ -918,6 +918,16 @@ def join_khata(db: Session, merchant_id: int, name: str, phone: str, language: s
     return {"ok": True, "customer_id": customer.id, "name": customer.display_name}
 
 
+def sync_demo_languages(db: Session, merchant: Merchant) -> None:
+    """Demo only: when the shop switches language, every customer switches with it, so reminder previews,
+    the customer phone page and new messages all follow the merchant's choice on stage. Messages already
+    sent stay as they were sent. In production (DEMO_MODE=false) each customer keeps the language they
+    chose when joining, whatever the shop speaks."""
+    if not settings.demo_mode:
+        return
+    db.execute(update(Customer).where(Customer.merchant_id == merchant.id).values(language=merchant.language))
+
+
 def customer_view(db: Session, customer_id: int) -> dict:
     customer = db.get(Customer, customer_id)
     if customer is None:

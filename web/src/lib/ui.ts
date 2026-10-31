@@ -1,15 +1,16 @@
 // Small presentational helpers. Design spec: ../../../.superdesign/design-system.md
+import { tNow } from './i18n';
 import type { LangCode } from './types';
 
 export const initial = (name: string) => (name.trim()[0] ?? '?').toUpperCase();
 
-/** "Today, 4:12 pm" / "Yesterday" / "12 Oct" from an ISO UTC timestamp. */
+/** "Today, 4:12 pm" / "Yesterday" / "12 Oct" from an ISO UTC timestamp. The words follow the merchant's language. */
 export function timeAgo(iso: string) {
   const then = new Date(iso);
   if (Number.isNaN(then.getTime())) return '';
   const days = Math.floor((Date.now() - then.getTime()) / 86400000);
-  if (days <= 0) return `Today, ${then.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}`;
-  if (days === 1) return 'Yesterday';
+  if (days <= 0) return tNow('Today, {time}', { time: then.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }) });
+  if (days === 1) return tNow('Yesterday');
   return then.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
@@ -27,10 +28,10 @@ export function greeting(lang: string): string {
   return g[lang] ?? 'Namaste';
 }
 
-/** "Listening…" in the merchant's language (native script) with the English line under it, for the listening sheet. */
+/** "Listening…" in the merchant's language (native script) with the helper line under it, for the listening sheet. */
 export function listeningLabel(lang: string): { native: string; en: string } {
   const l: Record<string, string> = { 'ta-IN': 'கேட்கிறேன்…', 'hi-IN': 'सुन रहा हूँ…', 'kn-IN': 'ಕೇಳುತ್ತಿದ್ದೇನೆ…', 'te-IN': 'వింటున్నాను…', 'en-IN': 'Listening…' };
-  return { native: l[lang] ?? 'Listening…', en: 'Listening… speak now' };
+  return { native: l[lang] ?? 'Listening…', en: tNow('Listening… speak now') };
 }
 
 /**
@@ -76,6 +77,7 @@ export const SUGGESTIONS: Record<LangCode, { native: string; send: string }[]> =
   ],
 };
 
+/** English labels per action kind; these are translation keys, so render them through `t(KIND_LABEL[kind])`. */
 export const KIND_LABEL: Record<string, string> = {
   add_credit: 'Udhaar',
   record_repayment: 'Payment received',

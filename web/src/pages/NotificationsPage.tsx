@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { BellRing, CalendarClock, CheckCheck, Flag, HandCoins, IndianRupee, MessageCircleOff, PauseCircle, PhoneOff, UserPlus, UserRoundCheck, type LucideIcon } from 'lucide-react';
 import { AppShell, CompactHeader, Scroll } from '@/components/AppShell';
 import { PaytmButton, PaytmCard, PaytmChip, PaytmLinkButton } from '@/components/paytm';
+import { useT } from '@/lib/i18n';
 import type { Notification, NotificationCategory } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useKhata } from '@/store/useKhata';
@@ -15,6 +16,7 @@ import { useNotifications } from '@/store/useNotifications';
  * opens the customer. Reminders (the tab) is the outbound schedule; this is the inbound side.
  */
 type Filter = 'all' | NotificationCategory;
+type T = ReturnType<typeof useT>;
 
 const ICON: Record<string, { icon: LucideIcon; tone: string }> = {
   flagged: { icon: Flag, tone: 'bg-flag/10 text-flag' },
@@ -32,15 +34,15 @@ const ICON: Record<string, { icon: LucideIcon; tone: string }> = {
 };
 
 /** "2h ago", "3d ago", "due today", or a short date. */
-function when(iso: string, now: Date): string {
-  const t = new Date(iso);
-  const diff = (t.getTime() - now.getTime()) / 1000;
-  if (diff > 60) return diff < 36 * 3600 ? (diff < 12 * 3600 ? 'today' : 'tomorrow') : t.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+function when(iso: string, now: Date, t: T): string {
+  const d = new Date(iso);
+  const diff = (d.getTime() - now.getTime()) / 1000;
+  if (diff > 60) return diff < 36 * 3600 ? (diff < 12 * 3600 ? t('today') : t('tomorrow')) : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   const ago = -diff;
-  if (ago < 3600) return `${Math.max(1, Math.round(ago / 60))}m ago`;
-  if (ago < 86400) return `${Math.round(ago / 3600)}h ago`;
-  if (ago < 7 * 86400) return `${Math.round(ago / 86400)}d ago`;
-  return t.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  if (ago < 3600) return t('{n}m ago', { n: Math.max(1, Math.round(ago / 60)) });
+  if (ago < 86400) return t('{n}h ago', { n: Math.round(ago / 3600) });
+  if (ago < 7 * 86400) return t('{n}d ago', { n: Math.round(ago / 86400) });
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
 function dayKey(iso: string, now: Date): 'Today' | 'Yesterday' | 'Earlier' {
@@ -51,7 +53,16 @@ function dayKey(iso: string, now: Date): 'Today' | 'Yesterday' | 'Earlier' {
   return same(d, n) ? 'Yesterday' : 'Earlier';
 }
 
+const EMPTY: Record<Filter, string> = {
+  all: 'No activity in the last two weeks.',
+  action: 'No activity in the last two weeks.',
+  payments: 'No payments in the last two weeks.',
+  reminders: 'No reminders in the last two weeks.',
+  customers: 'No customers in the last two weeks.',
+};
+
 export function NotificationsPage() {
+  const t = useT();
   const state = useKhata((s) => s.state);
   const { items, counts, loaded, load, markAllRead, isUnread } = useNotifications();
   const [filter, setFilter] = useState<Filter>('all');
@@ -80,7 +91,7 @@ export function NotificationsPage() {
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline justify-between gap-2">
             <span className={cn('truncate text-[15px] text-ink', n.urgent ? 'font-bold' : 'font-semibold')}>{n.title}</span>
-            <span className="shrink-0 text-[11px] text-ink-3">{when(n.at, now)}</span>
+            <span className="shrink-0 text-[11px] text-ink-3">{when(n.at, now, t)}</span>
           </span>
           <span className="mt-0.5 block text-[13px] leading-snug text-ink-2">{n.body}</span>
           {n.action && (
@@ -97,36 +108,36 @@ export function NotificationsPage() {
 
   return (
     <AppShell>
-      <CompactHeader title="Notifications" tone="plain" left={<Link to="/" className="-ml-2 inline-flex h-11 items-center pr-2 font-semibold text-blue active:opacity-70">‹ Home</Link>}
-        right={events.length > 0 ? <PaytmButton variant="ghost" size="sm" icon={CheckCheck} onClick={markAllRead}>Mark read</PaytmButton> : undefined} />
+      <CompactHeader title={t('Notifications')} tone="plain" left={<Link to="/" className="-ml-2 inline-flex h-11 items-center pr-2 font-semibold text-blue active:opacity-70">‹ {t('Home')}</Link>}
+        right={events.length > 0 ? <PaytmButton variant="ghost" size="sm" icon={CheckCheck} onClick={markAllRead}>{t('Mark read')}</PaytmButton> : undefined} />
       <Scroll className="pb-6">
         <div className="flex flex-col gap-3 px-4 pt-2">
           <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" style={{ scrollbarWidth: 'none' }}>
-            {chip('all', 'All')}
-            {chip('action', 'Needs you', counts.action)}
-            {chip('payments', 'Money in', counts.payments)}
-            {chip('reminders', 'Reminders', counts.reminders)}
-            {chip('customers', 'Customers', counts.customers)}
+            {chip('all', t('All'))}
+            {chip('action', t('Needs you'), counts.action)}
+            {chip('payments', t('Money in'), counts.payments)}
+            {chip('reminders', t('Reminders'), counts.reminders)}
+            {chip('customers', t('Customers'), counts.customers)}
           </div>
 
           {!loaded && <div className="h-24 animate-pulse rounded-2xl bg-chip" aria-hidden="true" />}
 
           {loaded && (filter === 'all' || filter === 'action') && (
-            <PaytmCard padded={false} title="Needs you" subtitle={actions.length ? `${actions.length} ${actions.length === 1 ? 'thing' : 'things'} to look at` : 'Nothing waiting on you'}>
-              {actions.length === 0 && <div className="px-4 pb-4 text-[13px] text-ink-2">Flagged entries, silent customers after reminders, and people you can't remind show up here.</div>}
+            <PaytmCard padded={false} title={t('Needs you')} subtitle={actions.length ? t(actions.length === 1 ? '{n} thing to look at' : '{n} things to look at', { n: actions.length }) : t('Nothing waiting on you')}>
+              {actions.length === 0 && <div className="px-4 pb-4 text-[13px] text-ink-2">{t("Flagged entries, silent customers after reminders, and people you can't remind show up here.")}</div>}
               {actions.map((n, i) => <div key={n.id} className={cn(i > 0 && 'border-t border-line')}><Row n={n} /></div>)}
             </PaytmCard>
           )}
 
           {loaded && groups.map((g) => (
-            <PaytmCard key={g.k} padded={false} title={g.k}>
+            <PaytmCard key={g.k} padded={false} title={t(g.k)}>
               {g.rows.map((n, i) => <div key={n.id} className={cn(i > 0 && 'border-t border-line')}><Row n={n} /></div>)}
             </PaytmCard>
           ))}
           {loaded && events.length === 0 && filter !== 'action' && (
-            <p className="px-2 text-center text-[13px] text-ink-2">No {filter === 'all' ? 'activity' : filter === 'payments' ? 'payments' : filter} in the last two weeks.</p>
+            <p className="px-2 text-center text-[13px] text-ink-2">{t(EMPTY[filter])}</p>
           )}
-          <p className="px-2 pt-1 text-center text-[12px] text-ink-2">Everything here comes from the khata itself. Nothing to tidy, nothing to type.</p>
+          <p className="px-2 pt-1 text-center text-[12px] text-ink-2">{t('Everything here comes from the khata itself. Nothing to tidy, nothing to type.')}</p>
         </div>
       </Scroll>
     </AppShell>

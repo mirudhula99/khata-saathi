@@ -1,8 +1,10 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { Mic } from 'lucide-react';
 import { PaytmCard, PaytmLinkButton, Wordmark } from '@/components/paytm';
+import { useT } from '@/lib/i18n';
 
 export function NotFound() {
+  const t = useT();
   const { pathname } = useLocation();
   // Old React-era links: /customer/<id> → the customer screen now lives at /khata/<id>.
   const m = /^\/customer\/(\d+)/.exec(pathname);
@@ -13,9 +15,9 @@ export function NotFound() {
         <Wordmark />
         <PaytmCard className="w-full">
           <h1 className="font-display text-[48px] font-extrabold leading-none text-blue">404</h1>
-          <p className="mt-2 text-[13px] text-ink-2">Nothing at {pathname}.</p>
+          <p className="mt-2 text-[13px] text-ink-2">{t('Nothing at {path}.', { path: pathname })}</p>
           <div className="mt-4">
-            <PaytmLinkButton to="/" full icon={Mic}>Back to Saathi</PaytmLinkButton>
+            <PaytmLinkButton to="/" full icon={Mic}>{t('Back to Saathi')}</PaytmLinkButton>
           </div>
         </PaytmCard>
       </div>

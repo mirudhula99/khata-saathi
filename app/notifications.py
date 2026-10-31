@@ -5,7 +5,8 @@ Two kinds:
 - "action": things that need the shopkeeper now (a flagged entry, someone silent after reminders, a debtor who
   can't be reminded). Always shown, regardless of age, while the condition holds.
 - events ("payments", "reminders", "customers"): what happened in the last WINDOW_DAYS, newest first.
-Read-only. Follows the demo clock.
+Read-only. Follows the demo clock. Text comes from i18n.NOTIF in the merchant's language; `kind`, `category`
+and ids never change with the language (the React app keys icons by `kind`).
 """
 from datetime import timedelta
 
@@ -14,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from . import clock, ledger
 from .config import settings
+from .i18n import norm_lang, notif_text
 from .models import Customer, LedgerEntry, Payment, Reminder
 
 WINDOW_DAYS = 14
@@ -27,7 +29,9 @@ def _days_ago(dt) -> int:
     return max(0, int((clock.now() - dt).total_seconds() // 86400))
 
 
-def build(db: Session, merchant_id: int) -> dict:
+def build(db: Session, merchant_id: int, lang: str | None = None) -> dict:
+    lang = norm_lang(lang)
+    t = lambda key, **values: notif_text(lang, key, **values)  # noqa: E731
     now = clock.now()
     since = now - timedelta(days=WINDOW_DAYS)
     customers = {c.id: c for c in db.scalars(select(Customer).where(Customer.merchant_id == merchant_id))}
@@ -37,6 +41,7 @@ def build(db: Session, merchant_id: int) -> dict:
 
     def add(kind: str, category: str, customer: Customer | None, title: str, body: str, at, *,
             amount: int | None = None, urgent: bool = False, action: str | None = None, uid: str = ""):
+        # `action` is a NOTIF key (n_action_open / n_action_resolve / n_action_resume); the label is rendered here.
         items.append({
             "id": f"{kind}:{uid or (customer.id if customer else 0)}:{at.strftime('%Y%m%d%H%M%S') if at else ''}",
             "kind": kind, "category": category,
@@ -44,7 +49,7 @@ def build(db: Session, merchant_id: int) -> dict:
             "customer_name": customer.display_name if customer else None,
             "title": title, "body": body, "amount": amount,
             "at": _iso(at) if at else _iso(now), "urgent": urgent,
-            "action": {"label": action, "to": f"/khata/{customer.id}"} if action and customer else None,
+            "action": {"label": t(action), "to": f"/khata/{customer.id}"} if action and customer else None,
         })
 
     # ---- needs action (current state) -------------------------------------------------------------
@@ -54,9 +59,9 @@ def build(db: Session, merchant_id: int) -> dict:
         c = customers.get(e.customer_id)
         if c is None:
             continue
-        add("flagged", "action", c, f"{c.display_name} flagged ₹{ledger.rupees(e.amount_paise):,}",
-            "Says the entry is wrong. Keep or remove it; reminders are paused until you do.",
-            e.created_at, amount=ledger.rupees(e.amount_paise), urgent=True, action="Resolve", uid=str(e.id))
+        amt = ledger.rupees(e.amount_paise)
+        add("flagged", "action", c, t("n_flagged_title", name=c.display_name, amount=amt), t("n_flagged_body"),
+            e.created_at, amount=amt, urgent=True, action="n_action_resolve", uid=str(e.id))
 
     sent_reminders = db.scalars(select(Reminder).where(Reminder.status == "sent")
                                 .order_by(Reminder.sent_at.desc())).all()
@@ -88,22 +93,21 @@ def build(db: Session, merchant_id: int) -> dict:
         owed = bal(cid)
         if owed <= 0:
             continue
+        name = c.display_name
         flagged_at = flagged_balance.get(cid)
         if flagged_at and not (last_paid.get(cid) and last_paid[cid] > flagged_at):
-            add("balance_flagged", "action", c, f"{c.display_name} says the amount is wrong",
-                f"₹{owed:,} pending. Reminders are paused. Check their record, then call or resume.",
-                flagged_at, amount=owed, urgent=True, action="Open")
+            add("balance_flagged", "action", c, t("n_balance_flagged_title", name=name),
+                t("n_balance_flagged_body", amount=owed), flagged_at, amount=owed, urgent=True, action="n_action_open")
             continue
         if c.consent == "pending":
-            add("no_consent", "action", c, f"Can't remind {c.display_name}",
-                f"₹{owed:,} pending, but they haven't joined WhatsApp updates. Share the Join QR or ask in person.",
-                None, amount=owed, action="Open")
+            add("no_consent", "action", c, t("n_no_consent_title", name=name), t("n_no_consent_body", amount=owed),
+                None, amount=owed, action="n_action_open")
         elif c.consent == "opted_out":
-            add("opted_out", "action", c, f"{c.display_name} stopped reminders",
-                f"₹{owed:,} pending. They replied STOP, so only a word in person now.", None, amount=owed, action="Open")
+            add("opted_out", "action", c, t("n_opted_out_title", name=name), t("n_opted_out_body", amount=owed),
+                None, amount=owed, action="n_action_open")
         elif c.reminders_paused:
-            add("paused", "action", c, f"Reminders paused for {c.display_name}",
-                f"₹{owed:,} pending. Resume when you're ready.", None, amount=owed, action="Resume")
+            add("paused", "action", c, t("n_paused_title", name=name), t("n_paused_body", amount=owed),
+                None, amount=owed, action="n_action_resume")
         # Silent after reminders: nothing paid since the first reminder, and either two or more have gone out
         # or the only one was sent a full reminder-gap ago. The scheduler keeps nudging; this tells the merchant.
         r = last_sent.get(cid)
@@ -112,9 +116,9 @@ def build(db: Session, merchant_id: int) -> dict:
         paid_since = bool(first and last_paid.get(cid) and last_paid[cid] > first.sent_at)
         if r and first and not paid_since and (n >= 2 or now - r.sent_at >= gap):
             add("unpaid_after_reminder", "action", c,
-                f"{c.display_name} hasn't paid after {n} reminder{'s' if n > 1 else ''}",
-                f"₹{owed:,} pending · last reminded {_days_ago(r.sent_at)} days ago. Maybe a call, or a smaller amount?",
-                r.sent_at, amount=owed, urgent=n >= 2, action="Open")
+                t("n_unpaid_title_1" if n == 1 else "n_unpaid_title", name=name, n=n),
+                t("n_unpaid_body", amount=owed, days=_days_ago(r.sent_at)),
+                r.sent_at, amount=owed, urgent=n >= 2, action="n_action_open")
 
     # ---- payments ------------------------------------------------------------------------------------
     for p in db.scalars(select(Payment).where(Payment.verified_at >= since).order_by(Payment.verified_at.desc())):
@@ -125,8 +129,8 @@ def build(db: Session, merchant_id: int) -> dict:
         left = bal(c.id)
         settled = left <= 0 and last_paid.get(c.id) and last_paid[c.id] <= p.verified_at + timedelta(seconds=5)
         add("payment", "payments", c,
-            f"{c.display_name} paid ₹{amt:,}" + (" · settled up" if settled else ""),
-            ("Verified via Paytm. Balance is zero, reminders stopped." if settled else f"Verified via Paytm. ₹{left:,} still pending."),
+            t("n_payment_title", name=c.display_name, amount=amt) + (t("n_settled_suffix") if settled else ""),
+            t("n_payment_body_settled") if settled else t("n_payment_body_left", balance=left),
             p.verified_at, amount=amt, uid=str(p.id))
     for e in repayments:
         if e.created_at < since or e.payment_id is not None or e.source != "cash":
@@ -136,8 +140,9 @@ def build(db: Session, merchant_id: int) -> dict:
             continue
         amt = ledger.rupees(e.amount_paise)
         left = bal(c.id)
-        add("cash", "payments", c, f"Noted ₹{amt:,} cash from {c.display_name}" + (" · settled up" if left <= 0 else ""),
-            "Cash at the counter, recorded after your yes." + ("" if left <= 0 else f" ₹{left:,} still pending."),
+        add("cash", "payments", c,
+            t("n_cash_title", name=c.display_name, amount=amt) + (t("n_settled_suffix") if left <= 0 else ""),
+            t("n_cash_body") + ("" if left <= 0 else t("n_still_pending", balance=left)),
             e.created_at, amount=amt, uid=str(e.id))
 
     # ---- reminders -----------------------------------------------------------------------------------
@@ -145,26 +150,28 @@ def build(db: Session, merchant_id: int) -> dict:
         c = customers.get(r.customer_id)
         if c is None or not r.sent_at or r.sent_at < since:
             continue
-        add("reminder_sent", "reminders", c, f"Reminder sent to {c.display_name}",
-            f"Nudge {r.tone_level} of 3 on WhatsApp, with a payment link." + (f" ₹{bal(c.id):,} pending." if bal(c.id) > 0 else " Paid since."),
+        left = bal(c.id)
+        add("reminder_sent", "reminders", c, t("n_reminder_sent_title", name=c.display_name),
+            t("n_reminder_sent_body", n=r.tone_level) + (t("n_still_pending", balance=left) if left > 0 else t("n_paid_since")),
             r.sent_at, uid=str(r.id))
     for r in db.scalars(select(Reminder).where(Reminder.status == "scheduled", Reminder.due_at <= now + timedelta(days=1))):
         c = customers.get(r.customer_id)
         if c is None or bal(c.id) <= 0:
             continue
-        add("reminder_due", "reminders", c, f"Reminder to {c.display_name} goes out {'today' if r.due_at <= now + timedelta(hours=12) else 'tomorrow'}",
-            f"₹{bal(c.id):,} pending. Pause from their page if you'd rather not.", r.due_at, uid=str(r.id))
+        today = r.due_at <= now + timedelta(hours=12)
+        add("reminder_due", "reminders", c,
+            t("n_reminder_due_today_title" if today else "n_reminder_due_tomorrow_title", name=c.display_name),
+            t("n_reminder_due_body", balance=bal(c.id)), r.due_at, uid=str(r.id))
 
     # ---- customers -----------------------------------------------------------------------------------
     for c in customers.values():
         if c.consent_at and c.consent_at >= since and c.consent == "granted":
-            add("joined", "customers", c, f"{c.display_name} joined WhatsApp updates",
-                "They'll get entries to confirm and polite reminders with a pay link.", c.consent_at, uid="j")
+            add("joined", "customers", c, t("n_joined_title", name=c.display_name), t("n_joined_body"),
+                c.consent_at, uid="j")
         if c.created_at and c.created_at >= since:
-            add("new_customer", "customers", c, f"New customer: {c.display_name}",
-                "Added to your khata." + (" No WhatsApp yet." if c.consent != "granted" else ""), c.created_at, uid="n")
+            add("new_customer", "customers", c, t("n_new_customer_title", name=c.display_name),
+                t("n_new_customer_body") + (t("n_no_whatsapp") if c.consent != "granted" else ""), c.created_at, uid="n")
 
-    items.sort(key=lambda i: (0 if i["category"] == "action" else 1, 0 if i["urgent"] else 1, i["at"]), reverse=False)
     # Actions first (urgent first), then events newest first.
     actions = [i for i in items if i["category"] == "action"]
     actions.sort(key=lambda i: (not i["urgent"], i["at"]), reverse=False)

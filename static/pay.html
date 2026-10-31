@@ -8,7 +8,7 @@
   <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Hind:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Hind:wght@400;600;700&family=Hind+Guntur:wght@400;600&family=Hind+Madurai:wght@400;600&family=Hind+Mysuru:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
@@ -23,13 +23,56 @@
     const panel = document.getElementById("panel");
     const linkId = location.pathname.split("/").pop();
 
+    // Fixed strings in the customer's language (GET /api/pay/{id} returns `language`). {shop}, {name}, {amount}
+    // are filled in; amounts are always "₹1,240".
+    const UI = {
+      "en-IN": {
+        title: "Pay {shop}", owe: "{name}, you owe {amount}", nothing: "{name}, nothing left to pay. Thank you!",
+        full: "Full amount", other: "Other amount", pay: "Pay {amount}", payPlain: "Pay",
+        testNote: "Test payment. No real money moves.", aboveZero: "Enter an amount above ₹0.", oweOnly: "You owe only {amount}.",
+        paid: "Paid {amount}", to: "to {shop}", remaining: "Remaining with {shop}: {amount}", done: "Nothing left to pay. Thank you!",
+        back: "Back to messages", notFound: "Payment link not found",
+      },
+      "hi-IN": {
+        title: "{shop} को भुगतान", owe: "{name}, आप पर {amount} बकाया है", nothing: "{name}, कुछ बकाया नहीं। धन्यवाद!",
+        full: "पूरी रकम", other: "दूसरी रकम", pay: "{amount} भुगतान करें", payPlain: "भुगतान करें",
+        testNote: "टेस्ट भुगतान। असली पैसा नहीं जाता।", aboveZero: "₹0 से ज़्यादा रकम डालें।", oweOnly: "आप पर सिर्फ़ {amount} बकाया है।",
+        paid: "{amount} भुगतान हुआ", to: "{shop} को", remaining: "{shop} में बाकी: {amount}", done: "कुछ बकाया नहीं। धन्यवाद!",
+        back: "संदेशों पर वापस", notFound: "पेमेंट लिंक नहीं मिला",
+      },
+      "kn-IN": {
+        title: "{shop} ಗೆ ಪಾವತಿಸಿ", owe: "{name}, ನೀವು {amount} ಕೊಡಬೇಕು", nothing: "{name}, ಪಾವತಿಸಲು ಏನೂ ಬಾಕಿ ಇಲ್ಲ. ಧನ್ಯವಾದ!",
+        full: "ಪೂರ್ತಿ ಮೊತ್ತ", other: "ಬೇರೆ ಮೊತ್ತ", pay: "{amount} ಪಾವತಿಸಿ", payPlain: "ಪಾವತಿಸಿ",
+        testNote: "ಪರೀಕ್ಷಾ ಪಾವತಿ. ನಿಜವಾದ ಹಣ ಹೋಗುವುದಿಲ್ಲ.", aboveZero: "₹0 ಕ್ಕಿಂತ ಹೆಚ್ಚು ಮೊತ್ತ ನಮೂದಿಸಿ.", oweOnly: "ನೀವು ಕೇವಲ {amount} ಕೊಡಬೇಕು.",
+        paid: "{amount} ಪಾವತಿಯಾಯಿತು", to: "{shop} ಗೆ", remaining: "{shop} ನಲ್ಲಿ ಉಳಿದದ್ದು: {amount}", done: "ಪಾವತಿಸಲು ಏನೂ ಬಾಕಿ ಇಲ್ಲ. ಧನ್ಯವಾದ!",
+        back: "ಸಂದೇಶಗಳಿಗೆ ಹಿಂತಿರುಗಿ", notFound: "ಪಾವತಿ ಲಿಂಕ್ ಸಿಗಲಿಲ್ಲ",
+      },
+      "ta-IN": {
+        title: "{shop} க்கு செலுத்து", owe: "{name}, நீங்கள் {amount} தர வேண்டும்", nothing: "{name}, செலுத்த எதுவும் இல்லை. நன்றி!",
+        full: "முழுத் தொகை", other: "வேறு தொகை", pay: "{amount} செலுத்து", payPlain: "செலுத்து",
+        testNote: "சோதனைப் பணம். உண்மைப் பணம் போகாது.", aboveZero: "₹0 க்கு மேல் தொகை உள்ளிடுங்கள்.", oweOnly: "நீங்கள் {amount} மட்டுமே தர வேண்டும்.",
+        paid: "{amount} செலுத்தப்பட்டது", to: "{shop} க்கு", remaining: "{shop} இல் மீதம்: {amount}", done: "செலுத்த எதுவும் இல்லை. நன்றி!",
+        back: "செய்திகளுக்குத் திரும்பு", notFound: "பணம் செலுத்தும் லிங்க் இல்லை",
+      },
+      "te-IN": {
+        title: "{shop} కి చెల్లించండి", owe: "{name}, మీరు {amount} ఇవ్వాలి", nothing: "{name}, చెల్లించాల్సింది ఏమీ లేదు. ధన్యవాదాలు!",
+        full: "పూర్తి మొత్తం", other: "వేరే మొత్తం", pay: "{amount} చెల్లించండి", payPlain: "చెల్లించండి",
+        testNote: "టెస్ట్ చెల్లింపు. నిజమైన డబ్బు వెళ్ళదు.", aboveZero: "₹0 కంటే ఎక్కువ మొత్తం నమోదు చేయండి.", oweOnly: "మీరు {amount} మాత్రమే ఇవ్వాలి.",
+        paid: "{amount} చెల్లించారు", to: "{shop} కి", remaining: "{shop} లో మిగిలింది: {amount}", done: "చెల్లించాల్సింది ఏమీ లేదు. ధన్యవాదాలు!",
+        back: "మెసేజ్‌లకు తిరిగి", notFound: "చెల్లింపు లింక్ దొరకలేదు",
+      },
+    };
+    let T = UI["en-IN"];
+    const money = (n) => `₹${inr(n)}`;
+    const t = (key, v = {}) => T[key].replace(/\{(\w+)\}/g, (_, k) => (k in v ? v[k] : `{${k}}`));
+
     function done(r, info) {
       panel.replaceChildren(
         h("div", { class: "done-mark" }, svgCheck()),
-        h("h1", {}, `Paid ₹${inr(r.amount)}`),
-        h("p", { class: "to" }, `to ${info.shop}`),
-        h("p", {}, r.balance > 0 ? `Remaining with ${info.shop}: ₹${inr(r.balance)}` : "Nothing left to pay. Thank you!"),
-        h("a", { class: "btn", href: `/customer?id=${info.customer_id}`, style: "width:100%;margin-top:12px" }, "Back to messages"));
+        h("h1", {}, t("paid", { amount: money(r.amount) })),
+        h("p", { class: "to" }, t("to", { shop: info.shop })),
+        h("p", {}, r.balance > 0 ? t("remaining", { shop: info.shop, amount: money(r.balance) }) : t("done")),
+        h("a", { class: "btn", href: `/customer?id=${info.customer_id}`, style: "width:100%;margin-top:12px" }, t("back")));
     }
     function svgCheck() {
       const ns = "http://www.w3.org/2000/svg";
@@ -44,34 +87,36 @@
     async function load() {
     try {
       const info = await api(`/api/pay/${linkId}`);
+      T = UI[info.language] || UI["en-IN"];
+      document.documentElement.lang = (info.language || "en-IN").split("-")[0];
       if (info.balance <= 0) {
-        panel.replaceChildren(h("h1", {}, `Pay ${info.shop}`),
-          h("p", { class: "to" }, `${info.customer_name}, nothing left to pay. Thank you!`),
-          h("a", { class: "btn", href: `/customer?id=${info.customer_id}`, style: "width:100%;margin-top:12px" }, "Back to messages"));
+        panel.replaceChildren(h("h1", {}, t("title", { shop: info.shop })),
+          h("p", { class: "to" }, t("nothing", { name: info.customer_name })),
+          h("a", { class: "btn", href: `/customer?id=${info.customer_id}`, style: "width:100%;margin-top:12px" }, t("back")));
         return;
       }
       const suggested = Math.min(info.amount, info.balance);
-      const other = h("input", { type: "number", min: "1", inputmode: "numeric", placeholder: "₹", "aria-label": "Other amount" });
+      const other = h("input", { type: "number", min: "1", inputmode: "numeric", placeholder: "₹", "aria-label": t("other") });
       const error = h("p", { class: "form-error", hidden: true });
-      const payBtn = h("button", { class: "btn btn-primary attention", type: "submit", style: "width:100%" }, `Pay ₹${inr(suggested)}`);
+      const payBtn = h("button", { class: "btn btn-primary attention", type: "submit", style: "width:100%" }, t("pay", { amount: money(suggested) }));
       const form = h("form", {},
         h("div", { class: "amount-choice" },
-          h("label", {}, h("input", { type: "radio", name: "amt", value: "full", checked: true }), "Full amount",
-            h("span", { class: "val" }, `₹${inr(suggested)}`)),
-          h("label", {}, h("input", { type: "radio", name: "amt", value: "other" }), "Other amount", other)),
+          h("label", {}, h("input", { type: "radio", name: "amt", value: "full", checked: true }), t("full"),
+            h("span", { class: "val" }, money(suggested))),
+          h("label", {}, h("input", { type: "radio", name: "amt", value: "other" }), t("other"), other)),
         payBtn, error,
-        h("p", { class: "test-note" }, info.provider === "mock" ? "Test payment. No real money moves." : ""));
+        h("p", { class: "test-note" }, info.provider === "mock" ? t("testNote") : ""));
       const amountNow = () => form.amt.value === "full" ? suggested : parseInt(other.value, 10);
       form.addEventListener("input", () => {
         if (document.activeElement === other) form.amt.value = "other";
         const a = amountNow();
-        payBtn.textContent = a > 0 ? `Pay ₹${inr(a)}` : "Pay";
+        payBtn.textContent = a > 0 ? t("pay", { amount: money(a) }) : t("payPlain");
       });
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
         const amount = amountNow();
-        if (!(amount > 0)) { error.hidden = false; error.textContent = "Enter an amount above ₹0."; return; }
-        if (amount > info.balance) { error.hidden = false; error.textContent = `You owe only ₹${inr(info.balance)}.`; return; }
+        if (!(amount > 0)) { error.hidden = false; error.textContent = t("aboveZero"); return; }
+        if (amount > info.balance) { error.hidden = false; error.textContent = t("oweOnly", { amount: money(info.balance) }); return; }
         payBtn.disabled = true;
         try {
           done(await api(`/api/pay/${linkId}/simulate`, { method: "POST", body: { amount } }), info);
@@ -79,10 +124,10 @@
           payBtn.disabled = false; error.hidden = false; error.textContent = err.message;
         }
       });
-      panel.replaceChildren(h("h1", {}, `Pay ${info.shop}`),
-        h("p", { class: "to" }, `${info.customer_name}, you owe ₹${inr(Math.max(info.balance, 0))}`), form);
+      panel.replaceChildren(h("h1", {}, t("title", { shop: info.shop })),
+        h("p", { class: "to" }, t("owe", { name: info.customer_name, amount: money(Math.max(info.balance, 0)) })), form);
     } catch (err) {
-      panel.replaceChildren(h("h1", {}, "Payment link not found"), h("p", { class: "to" }, err.message));
+      panel.replaceChildren(h("h1", {}, t("notFound")), h("p", { class: "to" }, err.message));
     }
     }
     load();

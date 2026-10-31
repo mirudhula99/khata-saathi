@@ -227,7 +227,7 @@ def api_state(db: Session = Depends(get_db)):
 def api_notifications(db: Session = Depends(get_db)):
     """Tasks and alerts for the shopkeeper, derived from the ledger (see app/notifications.py). Read-only."""
     merchant = services.get_merchant(db)
-    return notifications.build(db, merchant.id)
+    return notifications.build(db, merchant.id, merchant.language)
 
 
 @app.get("/api/stats")
@@ -242,6 +242,7 @@ def api_merchant(body: MerchantIn, db: Session = Depends(get_db)):
     merchant = services.get_merchant(db)
     if body.language:
         merchant.language = norm_lang(body.language)
+        services.sync_demo_languages(db, merchant)  # demo data follows the shop; no-op in production
     if body.shop_name:
         merchant.shop_name = body.shop_name.strip()[:120]
     if body.phone is not None:
@@ -410,7 +411,7 @@ def api_pay_info(link_id: str, db: Session = Depends(get_db)):
             "customer_id": customer.id, "customer_name": customer.display_name,
             "amount": ledger.rupees(link.amount_paise),
             "balance": ledger.rupees(ledger.balance_paise(db, customer.id)),
-            "provider": settings.payment_provider}
+            "language": customer.language, "provider": settings.payment_provider}
 
 
 @app.post("/api/pay/{link_id}/simulate")

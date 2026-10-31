@@ -6,6 +6,7 @@ import { ListeningSheet } from '@/components/ListeningSheet';
 import { PaytmCard } from '@/components/paytm';
 import { useRecorder } from '@/hooks/useRecorder';
 import { useSpeech } from '@/hooks/useSpeech';
+import { useT } from '@/lib/i18n';
 import { unlockAudio } from '@/lib/speech';
 import { cn } from '@/lib/utils';
 import { useKhata } from '@/store/useKhata';
@@ -19,6 +20,7 @@ import { useKhata } from '@/store/useKhata';
  * Web Speech API → /api/command. Both end in the same read-back card. Typed input and rows are the safety net.
  */
 export function MicHero({ autoFocus = false, correctionHint = false, after }: { autoFocus?: boolean; correctionHint?: boolean; after?: ReactNode }) {
+  const t = useT();
   const { lang, command, voice, loading, state, pending } = useKhata();
   const health = state?.health;
   const serverVoice = Boolean(health?.voice && health?.ffmpeg);
@@ -28,7 +30,7 @@ export function MicHero({ autoFocus = false, correctionHint = false, after }: { 
 
   // Spoken (browser speech) and the listening sheet's example bubbles count as voice: Saathi answers aloud.
   // The text box below is typing, so it stays quiet.
-  const onFinal = useCallback((t: string) => { void command(t, undefined, true); }, [command]);
+  const onFinal = useCallback((text: string) => { void command(text, undefined, true); }, [command]);
   const onClip = useCallback((blob: Blob, filename: string) => { void voice(blob, filename); }, [voice]);
   const ws = useSpeech(lang, onFinal);
   const rec = useRecorder(onClip);
@@ -44,18 +46,18 @@ export function MicHero({ autoFocus = false, correctionHint = false, after }: { 
   const pick = (text: string) => { cancel(); void command(text, undefined, true); };
   const submit = (e: FormEvent) => { e.preventDefault(); const v = typed.trim(); if (!v) return; setTyped(''); void command(v); };
 
-  const status = loading ? 'Understanding…'
+  const status = loading ? t('Understanding…')
     : serverVoice
-      ? (rec.error || (rec.recording ? 'Listening… tap to stop' : 'Tap, speak, tap again'))
-      : (ws.interim || (ws.listening ? 'Listening…' : ws.supported ? 'Tap and speak an entry, or ask' : 'Mic needs Chrome or Edge. Type below.'));
+      ? (rec.error || (rec.recording ? t('Listening… tap to stop') : t('Tap, speak, tap again')))
+      : (ws.interim || (ws.listening ? t('Listening…') : ws.supported ? t('Tap and speak an entry, or ask') : t('Mic needs Chrome or Edge. Type below.')));
 
   return (
     <>
-      <PaytmCard title="Speak to Saathi" subtitle="Udhaar, payments, or a question">
+      <PaytmCard title={t('Speak to Saathi')} subtitle={t('Udhaar, payments, or a question')}>
         <div className="flex flex-col items-center gap-3 pt-1">
           {/* Speaking language: its own full-width row so the title is not squeezed. Label left, dropdown right. */}
           <label htmlFor="lang" className="flex h-11 w-full items-center justify-between gap-3 rounded-xl bg-chip px-3">
-            <span className="flex items-center gap-1.5 text-[13px] font-medium text-ink-2"><Languages className="size-4 text-blue-600" strokeWidth={1.8} aria-hidden="true" /> I speak in</span>
+            <span className="flex items-center gap-1.5 text-[13px] font-medium text-ink-2"><Languages className="size-4 text-blue-600" strokeWidth={1.8} aria-hidden="true" /> {t('I speak in')}</span>
             <LanguageSelect id="lang" />
           </label>
 
@@ -63,7 +65,7 @@ export function MicHero({ autoFocus = false, correctionHint = false, after }: { 
             {listening && <span aria-hidden="true" className="ks-ring absolute size-40 rounded-full bg-sky/40" />}
             {/* Idle: a slow ring invites the first tap. Off while an entry waits, so only Save glows. */}
             {!listening && !loading && !pending && supported && <span aria-hidden="true" className="ks-ring-idle absolute size-40 rounded-full bg-sky/30" />}
-            <button ref={micRef} type="button" id="mic" aria-label={listening ? 'Stop and send' : 'Tap to speak'} aria-pressed={listening} onClick={tap} disabled={loading}
+            <button ref={micRef} type="button" id="mic" aria-label={listening ? t('Stop and send') : t('Tap to speak')} aria-pressed={listening} onClick={tap} disabled={loading}
               style={{ boxShadow: '0 16px 40px rgba(0, 186, 242, 0.55), 0 0 0 10px rgba(0, 186, 242, 0.12)' }}
               className={cn('ks-mic relative grid size-40 place-items-center rounded-full bg-sky text-white transition-transform active:scale-95 focus-visible:outline-4 focus-visible:outline-sky/40', !supported && 'opacity-70', listening && 'bg-blue')}>
               {listening ? <Square className="size-14 fill-current" /> : supported ? <Mic className="size-20" strokeWidth={2} /> : <MicOff className="size-20" strokeWidth={2} />}
@@ -77,11 +79,11 @@ export function MicHero({ autoFocus = false, correctionHint = false, after }: { 
 
           {/* "or type it": a 44px grey pill with a sky send button. */}
           <form onSubmit={submit} className="flex h-11 w-full items-center gap-2 rounded-full bg-chip pl-4 pr-0 focus-within:ring-2 focus-within:ring-sky/40">
-            <input ref={inputRef} id="typeInput" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" aria-label="Type an entry or a question"
-              placeholder={correctionHint ? 'Correct it: "No, 150"' : 'or type it'}
+            <input ref={inputRef} id="typeInput" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" aria-label={t('Type an entry or a question')}
+              placeholder={correctionHint ? t('Correct it: "No, 150"') : t('or type it')}
               className="h-full min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-3" />
             {/* 44px send target: the sky circle fills the pill's right end (spec "sky send button"; a11y tap target >= 44). */}
-            <button type="submit" aria-label="Send" disabled={loading} className="grid size-11 shrink-0 place-items-center rounded-full bg-sky text-white transition-transform duration-150 ease-out active:scale-[0.92] disabled:opacity-50"><Send className="size-[18px]" strokeWidth={2} /></button>
+            <button type="submit" aria-label={t('Send')} disabled={loading} className="grid size-11 shrink-0 place-items-center rounded-full bg-sky text-white transition-transform duration-150 ease-out active:scale-[0.92] disabled:opacity-50"><Send className="size-[18px]" strokeWidth={2} /></button>
           </form>
         </div>
       </PaytmCard>

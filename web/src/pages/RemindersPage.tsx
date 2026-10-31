@@ -5,6 +5,7 @@ import { PaytmButton, PaytmCard, PaytmRow, paytmButtonClass } from '@/components
 import { ReminderMessageSheet } from '@/components/ReminderMessageSheet';
 import { StatusChip } from '@/components/StatusChip';
 import { api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import type { CustomerRowData } from '@/lib/types';
 import { cn, inr } from '@/lib/utils';
 import { useKhata } from '@/store/useKhata';
@@ -17,6 +18,7 @@ import { useKhata } from '@/store/useKhata';
  * paused or disputed customers skipped, stops at zero balance. Never a red "overdue" banner.
  */
 export function RemindersPage() {
+  const t = useT();
   const { state, remindNow, patchCustomer } = useKhata();
   const owing = (state?.customers ?? []).filter((c) => c.balance > 0).sort((a, b) => b.days - a.days);
   const [rules, setRules] = useState(false);
@@ -37,59 +39,59 @@ export function RemindersPage() {
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ids, state]);
-  const firstLine = (c: CustomerRowData) => (previews[c.id] ?? '').split('\n')[0] || 'Loading message…';
-  const why = (c: CustomerRowData) => c.consent !== 'granted' ? (c.consent === 'opted_out' ? 'stopped by customer' : 'no WhatsApp consent yet') : c.reminders_paused ? 'paused by you' : c.disputes ? 'waiting on a flagged entry' : 'on schedule';
+  const firstLine = (c: CustomerRowData) => (previews[c.id] ?? '').split('\n')[0] || t('Loading message…');
+  const why = (c: CustomerRowData) => t(c.consent !== 'granted' ? (c.consent === 'opted_out' ? 'stopped by customer' : 'no WhatsApp consent yet') : c.reminders_paused ? 'paused by you' : c.disputes ? 'waiting on a flagged entry' : 'on schedule');
   const badge = (c: CustomerRowData) => c.consent === 'opted_out' ? <StatusChip kind="optedOut" /> : c.consent === 'pending' ? <StatusChip kind="noConsent" /> : c.reminders_paused ? <StatusChip kind="paused" /> : c.disputes ? <StatusChip kind="flagged" /> : null;
 
   return (
     <AppShell>
       {/* Clean title and one quiet line. The date lives on the home greeting (and under More → Demo clock when shifted). */}
-      <HeaderBand title="Reminders" subtitle="Polite nudges on WhatsApp, in the customer's language." />
+      <HeaderBand title={t('Reminders')} subtitle={t("Polite nudges on WhatsApp, in the customer's language.")} />
       <Scroll className="pb-6">
         <div className="flex flex-col gap-3 px-4 pt-1">
           <PaytmCard
             padded={false}
-            title="Reminder queue"
-            subtitle={owing.length ? `${owing.length} ${owing.length === 1 ? 'customer' : 'customers'} with udhaar pending` : 'Who gets reminded, and the message they get'}
+            title={t('Reminder queue')}
+            subtitle={owing.length ? t(owing.length === 1 ? '{n} customer with udhaar pending' : '{n} customers with udhaar pending', { n: owing.length }) : t('Who gets reminded, and the message they get')}
             action={
               /* Info icon → a dark tooltip bubble with the rules. Tap again or anywhere else to close. */
               <span className="relative inline-block">
-                <button type="button" aria-label="How reminders work" aria-expanded={rules} onClick={(e) => { e.stopPropagation(); setRules((r) => !r); }}
+                <button type="button" aria-label={t('How reminders work')} aria-expanded={rules} onClick={(e) => { e.stopPropagation(); setRules((r) => !r); }}
                   className="-my-2 grid size-10 place-items-center rounded-full text-ink-3 active:bg-chip">
                   <Info className="size-5" strokeWidth={1.8} />
                 </button>
                 {rules && (
                   <span role="tooltip" className="ks-fade-up absolute right-0 top-10 z-20 w-64 rounded-xl bg-ink px-3 py-2.5 text-left text-[12px] leading-snug text-white shadow-card">
-                    Only with the customer's consent. At most one a day, 9am to 8pm. Paused while an entry is flagged. Stops at zero balance. They can reply STOP any time.
+                    {t("Only with the customer's consent. At most one a day, 9am to 8pm. Paused while an entry is flagged. Stops at zero balance. They can reply STOP any time.")}
                     <span aria-hidden="true" className="absolute -top-1.5 right-3.5 size-3 rotate-45 bg-ink" />
                   </span>
                 )}
               </span>
             }
           >
-            {owing.length === 0 && <div className="px-4 pb-4 text-[13px] text-ink-2">Nobody owes anything. Nothing to remind.</div>}
+            {owing.length === 0 && <div className="px-4 pb-4 text-[13px] text-ink-2">{t('Nobody owes anything. Nothing to remind.')}</div>}
             {owing.map((c, i) => (
                 <div key={c.id} className={cn(i > 0 && 'border-t border-line')}>
                   <PaytmRow
                     avatar={c.name}
                     title={<span className="flex items-center gap-1.5"><span className="truncate">{c.name}</span>{badge(c)}</span>}
-                    sub={`${c.days} days · ${why(c)}`}
+                    sub={`${t('{n} days', { n: c.days })} · ${why(c)}`}
                     right={<span className="text-owed">{inr(c.balance)}</span>}
                     to={`/khata/${c.id}`}
                   />
                   {/* One line of the actual message, and a pen to add the merchant's own line. Tap either to open the editor. */}
-                  <button type="button" onClick={() => setEditing(c)} aria-label={`Edit the reminder message for ${c.name}`}
+                  <button type="button" onClick={() => setEditing(c)} aria-label={t('Edit the reminder message for {name}', { name: c.name })}
                     className="flex w-full items-center gap-2 px-4 pb-2 text-left active:opacity-70">
                     <MessageCircle className="size-4 shrink-0 text-sky-ink" strokeWidth={1.8} aria-hidden="true" />
                     <span className="min-w-0 flex-1 truncate text-[13px] text-ink-2">{firstLine(c)}</span>
-                    {c.reminder_note && <span className="shrink-0 rounded-full bg-sky-tint px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-ink">your line</span>}
+                    {c.reminder_note && <span className="shrink-0 rounded-full bg-sky-tint px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-ink">{t('your line')}</span>}
                     <span className="grid size-9 shrink-0 place-items-center rounded-full text-blue"><PenLine className="size-[18px]" strokeWidth={1.8} aria-hidden="true" /></span>
                   </button>
                   {/* 44px tap targets (design-system: never under 44) with the small pill's 13px label so all three fit on one line. */}
                   <div className="flex items-center gap-2 px-4 pb-3">
-                    <PaytmButton variant="primary" size="sm" className="h-11" icon={Bell} disabled={c.consent !== 'granted' || c.disputes > 0} onClick={() => void remindNow(c.id)}>Remind now</PaytmButton>
-                    <PaytmButton variant="outline" size="sm" className="h-11" icon={c.reminders_paused ? Play : Pause} onClick={() => void patchCustomer(c.id, { reminders_paused: !c.reminders_paused })}>{c.reminders_paused ? 'Resume' : 'Pause'}</PaytmButton>
-                    <a href={`/customer?id=${c.id}`} target="_blank" rel="noopener" aria-label="Open customer's phone" className={paytmButtonClass('ghost', 'sm', false, 'ml-auto size-11 px-0')}><Smartphone className="size-[18px]" strokeWidth={1.8} /></a>
+                    <PaytmButton variant="primary" size="sm" className="h-11" icon={Bell} disabled={c.consent !== 'granted' || c.disputes > 0} onClick={() => void remindNow(c.id)}>{t('Remind now')}</PaytmButton>
+                    <PaytmButton variant="outline" size="sm" className="h-11" icon={c.reminders_paused ? Play : Pause} onClick={() => void patchCustomer(c.id, { reminders_paused: !c.reminders_paused })}>{c.reminders_paused ? t('Resume') : t('Pause')}</PaytmButton>
+                    <a href={`/customer?id=${c.id}`} target="_blank" rel="noopener" aria-label={t("Open customer's phone")} className={paytmButtonClass('ghost', 'sm', false, 'ml-auto size-11 px-0')}><Smartphone className="size-[18px]" strokeWidth={1.8} /></a>
                   </div>
                 </div>
             ))}

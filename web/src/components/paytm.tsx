@@ -1,6 +1,7 @@
 import { createElement, isValidElement, useEffect, type ComponentProps, type ReactElement, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, ChevronLeft, ChevronRight, Search, type LucideIcon } from 'lucide-react';
+import { useT } from '@/lib/i18n';
 import { initial } from '@/lib/ui';
 import { cn } from '@/lib/utils';
 import { useKhata } from '@/store/useKhata';
@@ -23,6 +24,7 @@ const renderIcon = (icon: Icon | undefined, className: string, strokeWidth = 2) 
  * When the demo clock has been moved it adds the shifted day ("sandbox · Sun, 8 Nov"), which explains a jump in reminders.
  */
 export function SandboxNote() {
+  const t = useT();
   const demo = useKhata((s) => s.state?.health.demo_mode ?? false);
   const offset = useKhata((s) => s.state?.clock_offset_days ?? 0);
   if (!demo) return null;
@@ -32,7 +34,7 @@ export function SandboxNote() {
     d.setDate(d.getDate() + Math.round(offset));
     day = d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
   }
-  return <span className="mt-0.5 text-[10px] font-medium leading-none tracking-wide text-ink-3">sandbox{day ? ` · ${day}` : ''} · no real money</span>;
+  return <span className="mt-0.5 text-[10px] font-medium leading-none tracking-wide text-ink-3">{day ? t('sandbox · {day} · no real money', { day }) : t('sandbox · no real money')}</span>;
 }
 
 export function Wordmark({ className }: { className?: string }) {
@@ -45,10 +47,11 @@ export function Wordmark({ className }: { className?: string }) {
 
 /** 32px round avatar with the shop initial on --p-blue. Pass a name, or it reads the merchant shop name from the store. */
 export function ShopAvatar({ name, className }: { name?: string; className?: string }) {
+  const t = useT();
   const shop = useKhata((s) => s.state?.merchant.shop_name ?? '');
   const n = name ?? shop;
   return (
-    <span className={cn('font-display grid size-8 shrink-0 place-items-center rounded-full bg-blue text-[14px] font-bold text-white', className)} aria-label={n || 'Shop'}>
+    <span className={cn('font-display grid size-8 shrink-0 place-items-center rounded-full bg-blue text-[14px] font-bold text-white', className)} aria-label={n || t('Shop')}>
       {n ? initial(n) : 'K'}
     </span>
   );
@@ -65,12 +68,13 @@ export function TopBarIcon({ icon, label, to, href, onClick, className }: { icon
 
 /** The bell: opens Notifications and wears a count of open tasks plus unseen events. Reloads whenever the khata changes. */
 export function NotificationsBell() {
+  const t = useT();
   const state = useKhata((s) => s.state);
   const load = useNotifications((s) => s.load);
   const count = useNotifications((s) => s.unreadCount());
   useEffect(() => { void load(); }, [load, state]);
   return (
-    <Link to="/notifications" aria-label={count ? `Notifications, ${count} new` : 'Notifications'} className="relative -mr-2 grid size-10 place-items-center rounded-full text-blue active:bg-white/60">
+    <Link to="/notifications" aria-label={count ? t('Notifications, {n} new', { n: count }) : t('Notifications')} className="relative -mr-2 grid size-10 place-items-center rounded-full text-blue active:bg-white/60">
       {renderIcon(Bell, 'size-6', 1.8)}
       {count > 0 && (
         <span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-flag px-1 text-[10px] font-bold leading-none text-white ring-2 ring-card">
@@ -87,16 +91,17 @@ export function NotificationsBell() {
  * `backTo` makes the chevron go to a route instead of history(-1).
  */
 export function TopBar({ title, left, right, back = false, backTo, className }: { title?: ReactNode; left?: ReactNode; right?: ReactNode; back?: boolean; backTo?: string; className?: string }) {
+  const t = useT();
   const navigate = useNavigate();
   const leftNode = left !== undefined ? left
     : back ? (
-      <button type="button" aria-label="Back" onClick={() => (backTo ? navigate(backTo) : navigate(-1))} className="-ml-2 grid size-10 place-items-center rounded-full text-blue active:bg-white/60">
+      <button type="button" aria-label={t('Back')} onClick={() => (backTo ? navigate(backTo) : navigate(-1))} className="-ml-2 grid size-10 place-items-center rounded-full text-blue active:bg-white/60">
         <ChevronLeft className="size-6" strokeWidth={2} />
       </button>
     ) : <ShopAvatar />;
   const rightNode = right !== undefined ? right : (
     <>
-      <TopBarIcon icon={Search} label="Search customers" to="/khata" />
+      <TopBarIcon icon={Search} label={t('Search customers')} to="/khata" />
       <NotificationsBell />
     </>
   );
@@ -115,9 +120,10 @@ export function TopBar({ title, left, right, back = false, backTo, className }: 
 /* ------------------------------------------------------------------ Card -------------------------------------------- */
 
 /** The light-grey "Recent ›" style affordance for a card top-right slot. */
-export function Affordance({ children = 'Recent', to, onClick, className }: { children?: ReactNode; to?: string; onClick?: () => void; className?: string }) {
+export function Affordance({ children, to, onClick, className }: { children?: ReactNode; to?: string; onClick?: () => void; className?: string }) {
+  const t = useT();
   const cls = cn('inline-flex items-center gap-0.5 text-[13px] font-medium text-ink-3 active:opacity-70', className);
-  const inner = <>{children}<ChevronRight className="size-3.5" strokeWidth={2} /></>;
+  const inner = <>{children ?? t('Recent')}<ChevronRight className="size-3.5" strokeWidth={2} /></>;
   if (to) return <Link to={to} className={cls}>{inner}</Link>;
   if (onClick) return <button type="button" onClick={onClick} className={cls}>{inner}</button>;
   return <span className={cls}>{inner}</span>;
@@ -299,14 +305,15 @@ export function PaytmAlert({ tone = 'info', title, children, action, icon, compa
 /* ------------------------------------------------------------------ Summary banner ---------------------------------- */
 
 /** The pending-money summary as a Paytm-style pastel gradient card. `amount` is the headline ("₹1,240 pending"), `caption` the line under it. */
-export function SummaryBanner({ amount, caption, to, cta = 'Open khata', className }: { amount: ReactNode; caption?: ReactNode; to: string; cta?: ReactNode; className?: string }) {
+export function SummaryBanner({ amount, caption, to, cta, className }: { amount: ReactNode; caption?: ReactNode; to: string; cta?: ReactNode; className?: string }) {
+  const t = useT();
   return (
     <Link to={to} className={cn('p-promo-gradient flex items-center justify-between gap-3 rounded-2xl p-4 shadow-card active:opacity-80', className)}>
       <span className="min-w-0">
         <span className="font-display ks-xfade block text-[22px] font-extrabold leading-tight text-blue">{amount}</span>
         {caption != null && <span className="mt-0.5 block text-[13px] text-ink-2">{caption}</span>}
       </span>
-      <span className={paytmButtonClass('dark', 'sm', false, 'h-8 px-3.5 text-[12px]')}>{cta}<ChevronRight className="size-3.5" strokeWidth={2.4} /></span>
+      <span className={paytmButtonClass('dark', 'sm', false, 'h-8 px-3.5 text-[12px]')}>{cta ?? t('Open khata')}<ChevronRight className="size-3.5" strokeWidth={2.4} /></span>
     </Link>
   );
 }

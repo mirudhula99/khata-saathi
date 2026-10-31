@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { tNow } from '@/lib/i18n';
 import { normLang, speak, unlockAudio } from '@/lib/speech';
 import type { CommandResponse, CustomerPatch, LangCode, Pending, State } from '@/lib/types';
 import { inr } from '@/lib/utils';
@@ -54,7 +55,7 @@ export const useKhata = create<KhataState>((set, get) => {
     if (get().viaVoice) speak(res.speak_text, res.reply_lang, res.reply_audio_url);
     if (res.done) {
       set((s) => ({ doneSeq: s.doneSeq + 1 }));
-      toast.success(res.done.type === 'request' ? 'Payment link sent' : 'Saved', { description: res.reply_text });
+      toast.success(res.done.type === 'request' ? tNow('Payment link sent') : tNow('Saved'), { description: res.reply_text });
     }
     await get().refresh();
   };
@@ -88,7 +89,7 @@ export const useKhata = create<KhataState>((set, get) => {
     updateShop: async (shop) => {
       try {
         await api.patchMerchant(shop);
-        toast.success('Shop details saved');
+        toast.success(tNow('Shop details saved'));
         await get().refresh();
         return true;
       } catch (e) { toast.error(errMsg(e)); return false; }
@@ -98,7 +99,7 @@ export const useKhata = create<KhataState>((set, get) => {
     addCustomer: async (name) => {
       try {
         const c = await api.addCustomer({ name });
-        toast.success('Customer added', { description: c.name });
+        toast.success(tNow('Customer added'), { description: c.name });
         await get().refresh();
         return c.id;
       } catch (e) { toast.error(errMsg(e)); return null; }
@@ -131,7 +132,7 @@ export const useKhata = create<KhataState>((set, get) => {
       try {
         await api.remindNow(customerId);
         const c = get().state?.customers.find((x) => x.id === customerId);
-        toast.success('Reminder sent', { description: c ? `${c.name} · ${inr(c.balance)} · with a payment link` : undefined });
+        toast.success(tNow('Reminder sent'), { description: c ? tNow('{name} · {amount} · with a payment link', { name: c.name, amount: inr(c.balance) }) : undefined });
         await get().refresh();
       } catch (e) { toast.error(errMsg(e)); }
     },
@@ -141,7 +142,7 @@ export const useKhata = create<KhataState>((set, get) => {
     resolveDispute: async (entryId, action) => {
       try {
         const r = await api.resolveDispute(entryId, action);
-        toast.success(action === 'keep' ? 'Entry kept' : 'Entry removed', { description: `Balance now ${inr(r.balance)}` });
+        toast.success(action === 'keep' ? tNow('Entry kept') : tNow('Entry removed'), { description: tNow('Balance now {amount}', { amount: inr(r.balance) }) });
         set((s) => ({ doneSeq: s.doneSeq + 1 }));
         await get().refresh();
       } catch (e) { toast.error(errMsg(e)); }
@@ -149,15 +150,15 @@ export const useKhata = create<KhataState>((set, get) => {
     fastForward: async (days = 3) => {
       try {
         const r = await api.fastForward(days);
-        toast.success(`Moved ${days} days forward`, { description: `${r.reminders_sent} reminder${r.reminders_sent === 1 ? '' : 's'} sent · demo time +${r.offset_days} days` });
+        toast.success(tNow('Moved {n} days forward', { n: days }), { description: tNow(r.reminders_sent === 1 ? '{n} reminder sent · demo time +{d} days' : '{n} reminders sent · demo time +{d} days', { n: r.reminders_sent, d: r.offset_days }) });
         await get().refresh();
       } catch (e) { toast.error(errMsg(e)); }
     },
     runReminders: async () => {
-      try { const r = await api.runReminders(); toast(`${r.reminders_sent} reminder${r.reminders_sent === 1 ? '' : 's'} sent`); await get().refresh(); } catch (e) { toast.error(errMsg(e)); }
+      try { const r = await api.runReminders(); toast(tNow(r.reminders_sent === 1 ? '{n} reminder sent' : '{n} reminders sent', { n: r.reminders_sent })); await get().refresh(); } catch (e) { toast.error(errMsg(e)); }
     },
     reset: async () => {
-      try { await api.reset(); set({ pending: null, lastReply: null, lastTranscript: null, lastWarning: null, lastDone: null }); await get().refresh(); toast('Demo data reset'); } catch (e) { toast.error(errMsg(e)); }
+      try { await api.reset(); set({ pending: null, lastReply: null, lastTranscript: null, lastWarning: null, lastDone: null }); await get().refresh(); toast(tNow('Demo data reset')); } catch (e) { toast.error(errMsg(e)); }
     },
   };
 });

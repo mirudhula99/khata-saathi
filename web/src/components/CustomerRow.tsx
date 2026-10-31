@@ -1,4 +1,5 @@
 import type { CustomerRowData } from '@/lib/types';
+import { useT } from '@/lib/i18n';
 import { initial } from '@/lib/ui';
 import { cn, inr } from '@/lib/utils';
 import { PaytmRow, RowAvatar } from '@/components/paytm';
@@ -16,13 +17,14 @@ export function NavyInitial({ name, className }: { name: string; className?: str
  * the hairline between rows comes from the .p-row rule now.
  */
 export function CustomerRow({ c, quiet = false }: { c: CustomerRowData; last?: boolean; quiet?: boolean }) {
+  const t = useT();
   return (
     <PaytmRow
       to={`/khata/${c.id}`}
       chevron
       avatar={
         <RowAvatar name={c.name}>
-          {c.consent === 'pending' && <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-card bg-sky" title="Has not joined WhatsApp updates yet" />}
+          {c.consent === 'pending' && <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-card bg-sky" title={t('Has not joined WhatsApp updates yet')} />}
         </RowAvatar>
       }
       title={
@@ -33,9 +35,9 @@ export function CustomerRow({ c, quiet = false }: { c: CustomerRowData; last?: b
         </>
       }
       // Quiet rows (settled list): the note if there is one, otherwise just the name. Phone numbers are noise in a list.
-      sub={quiet ? (c.note || undefined) : (c.note || (c.phone ?? 'No phone'))}
-      right={c.balance > 0 ? <span className="text-owed tabular-nums">{inr(c.balance)}</span> : <span className="text-[13px] text-paid">Paid up</span>}
-      rightSub={c.balance > 0 ? `${c.days} days` : undefined}
+      sub={quiet ? (c.note || undefined) : (c.note || (c.phone ?? t('No phone')))}
+      right={c.balance > 0 ? <span className="text-owed tabular-nums">{inr(c.balance)}</span> : <span className="text-[13px] text-paid">{t('Paid up')}</span>}
+      rightSub={c.balance > 0 ? t('{days} days', { days: c.days }) : undefined}
     />
   );
 }

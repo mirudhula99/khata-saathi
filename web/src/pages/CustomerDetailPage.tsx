@@ -10,6 +10,7 @@ import { AppShell, CompactHeader, Scroll } from '@/components/AppShell';
 import { Affordance, IconTile, PaytmAlert, PaytmButton, PaytmCard, PaytmChip, PaytmRow, RowAvatar } from '@/components/paytm';
 import { StatusChip } from '@/components/StatusChip';
 import { api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import { LANGS } from '@/lib/speech';
 import type { CustomerDetail, Entry } from '@/lib/types';
 import { dateTime, timeAgo } from '@/lib/ui';
@@ -23,6 +24,7 @@ import { useKhata } from '@/store/useKhata';
  * "WhatsApp and reminders" rows (consent, pause, language, number). "Clear repayment history, no black-box score."
  */
 export function CustomerDetailPage() {
+  const t = useT();
   const { id = '' } = useParams<{ id: string }>();
   const cid = Number(id);
   const navigate = useNavigate();
@@ -38,20 +40,22 @@ export function CustomerDetailPage() {
     return () => { live = false; };
   }, [cid, state, doneSeq]);
 
-  const back = <Link to="/khata" className="-ml-2 inline-flex h-11 items-center pr-2 font-semibold active:opacity-70"><ChevronLeft className="size-6" strokeWidth={2} /> Khata</Link>;
-  if (err) return <AppShell><CompactHeader title="Customer" left={back} /><div className="p-6 text-center text-[13px] text-ink-2">{err}</div></AppShell>;
-  if (!c) return <AppShell><CompactHeader title="Customer" left={back} /></AppShell>;
+  const back = <Link to="/khata" className="-ml-2 inline-flex h-11 items-center pr-2 font-semibold active:opacity-70"><ChevronLeft className="size-6" strokeWidth={2} /> {t('Khata')}</Link>;
+  if (err) return <AppShell><CompactHeader title={t('Customer')} left={back} /><div className="p-6 text-center text-[13px] text-ink-2">{err}</div></AppShell>;
+  if (!c) return <AppShell><CompactHeader title={t('Customer')} left={back} /></AppShell>;
 
   const s = c.stats;
-  const habit = s.avg_days_to_clear != null ? `Usually pays back in about ${Math.round(s.avg_days_to_clear)} days (${s.credits_cleared} cleared).` : 'No repayment history yet.';
+  const habit = s.avg_days_to_clear != null
+    ? t('Usually pays back in about {days} days ({count} cleared).', { days: Math.round(s.avg_days_to_clear), count: s.credits_cleared })
+    : t('No repayment history yet.');
   const disputed = c.entries.filter((e) => e.status === 'disputed');
   const canRemind = c.balance > 0 && c.consent === 'granted' && disputed.length === 0;
-  const remindHint = c.consent !== 'granted' ? 'Needs WhatsApp consent' : disputed.length ? 'Resolve the flagged entry first' : '';
+  const remindHint = c.consent !== 'granted' ? t('Needs WhatsApp consent') : disputed.length ? t('Resolve the flagged entry first') : '';
   const meta = [c.note, c.phone, LANGS.find((l) => l.code === c.language)?.label].filter(Boolean).join(' · ');
 
   return (
     <AppShell>
-      <CompactHeader title={c.name} left={back} right={<a href={`/customer?id=${c.id}`} target="_blank" rel="noopener" className="-mr-2 inline-flex h-11 items-center gap-1 pl-2 font-semibold active:opacity-70"><Smartphone className="size-5" strokeWidth={1.8} /> Phone</a>} />
+      <CompactHeader title={c.name} left={back} right={<a href={`/customer?id=${c.id}`} target="_blank" rel="noopener" className="-mr-2 inline-flex h-11 items-center gap-1 pl-2 font-semibold active:opacity-70"><Smartphone className="size-5" strokeWidth={1.8} /> {t('Phone')}</a>} />
       <Scroll className="pb-6">
         <div className="flex flex-col gap-3 px-4 pt-3">
           {/* Hero: who, how much, since when, and the four actions. */}
@@ -62,18 +66,18 @@ export function CustomerDetailPage() {
                 <div className="font-display truncate text-[18px] font-extrabold leading-tight text-blue">{c.name}</div>
                 {meta && <div className="truncate text-[12px] text-ink-2">{meta}</div>}
               </div>
-              <Affordance to={`/add?customer=${c.id}`} className="-my-2 min-h-11 px-1"><PenLine className="size-3.5" strokeWidth={2} /> Add udhaar</Affordance>
+              <Affordance to={`/add?customer=${c.id}`} className="-my-2 min-h-11 px-1"><PenLine className="size-3.5" strokeWidth={2} /> {t('Add udhaar')}</Affordance>
             </div>
             <div className="mt-4 flex flex-col items-center gap-2 text-center">
               {c.balance > 0 ? (
                 <>
                   <div className="font-display ks-xfade text-[32px] font-extrabold leading-none tabular-nums text-owed" key={c.balance}>{inr(c.balance)}</div>
-                  <PaytmChip selected>pending{s.oldest_unpaid_days ? ` · ${s.oldest_unpaid_days} days` : ''}</PaytmChip>
+                  <PaytmChip selected>{s.oldest_unpaid_days ? t('pending · {days} days', { days: s.oldest_unpaid_days }) : t('pending')}</PaytmChip>
                 </>
               ) : (
                 /* Settled: one quiet line instead of a hero amount. The big number is for money that is still out. */
                 <div className="ks-xfade flex items-center gap-2 text-[15px] font-semibold text-paid" key="settled">
-                  <CheckCircle2 className="size-5" strokeWidth={2} aria-hidden="true" /> Paid up · nothing pending
+                  <CheckCircle2 className="size-5" strokeWidth={2} aria-hidden="true" /> {t('Paid up · nothing pending')}
                 </div>
               )}
               <p className={cn('text-[13px] text-ink-2', c.balance <= 0 && '-mt-1')}>{habit}</p>
@@ -88,70 +92,76 @@ export function CustomerDetailPage() {
             </div>
             <div className="mt-4 grid grid-cols-4 gap-3">
               <div title={remindHint || undefined}>
-                <IconTile icon={Bell} label="Remind now" disabled={!canRemind} onClick={() => void remindNow(c.id)} />
+                <IconTile icon={Bell} label={t('Remind now')} disabled={!canRemind} onClick={() => void remindNow(c.id)} />
               </div>
-              <IconTile icon={HandCoins} label="Record payment" disabled={c.balance <= 0} onClick={() => navigate(`/khata/${c.id}/settle`)} />
-              <IconTile icon={Smartphone} label={<>Customer&apos;s phone</>} href={`/customer?id=${c.id}`} target="_blank" />
+              <IconTile icon={HandCoins} label={t('Record payment')} disabled={c.balance <= 0} onClick={() => navigate(`/khata/${c.id}/settle`)} />
+              <IconTile icon={Smartphone} label={t("Customer's phone")} href={`/customer?id=${c.id}`} target="_blank" />
               <IconTile
                 icon={c.reminders_paused ? CirclePlay : CirclePause}
-                label={c.reminders_paused ? 'Resume reminders' : 'Pause reminders'}
+                label={c.reminders_paused ? t('Resume reminders') : t('Pause reminders')}
                 onClick={() => void patchCustomer(c.id, { reminders_paused: !c.reminders_paused })}
               />
             </div>
-            {!canRemind && remindHint && <p className="mt-2 text-center text-[11px] text-ink-3">Remind: {remindHint.toLowerCase()}.</p>}
+            {!canRemind && remindHint && <p className="mt-2 text-center text-[11px] text-ink-3">{t('Remind: {hint}.', { hint: remindHint.toLowerCase() })}</p>}
           </PaytmCard>
 
           {disputed.map((e) => (
             <PaytmAlert
               key={e.id}
               tone="error"
-              title={<>{c.name} says the {inr(e.amount)} entry{e.items.length ? ` (${e.items.join(', ')})` : ''} is wrong.</>}
+              title={t('{name} says the {amount} entry{items} is wrong.', { name: c.name, amount: inr(e.amount), items: e.items.length ? ` (${e.items.join(', ')})` : '' })}
               action={
                 <>
-                  <PaytmButton variant="outline" size="sm" onClick={() => void resolveDispute(e.id, 'keep')}>Keep entry</PaytmButton>
-                  <PaytmButton variant="dark" size="sm" onClick={() => void resolveDispute(e.id, 'remove')}>Remove entry</PaytmButton>
+                  <PaytmButton variant="outline" size="sm" onClick={() => void resolveDispute(e.id, 'keep')}>{t('Keep entry')}</PaytmButton>
+                  <PaytmButton variant="dark" size="sm" onClick={() => void resolveDispute(e.id, 'remove')}>{t('Remove entry')}</PaytmButton>
                 </>
               }
             >
-              Left out of the balance until you decide. Reminders pause meanwhile.
+              {t('Left out of the balance until you decide. Reminders pause meanwhile.')}
             </PaytmAlert>
           ))}
 
-          <PaytmCard padded={false} title="History" subtitle={`The actual record · ${c.entries.length} ${c.entries.length === 1 ? 'entry' : 'entries'} · no score, you decide`}>
-            {c.entries.length === 0 && <div className="px-4 pb-4 pt-1 text-[13px] text-ink-2">No entries yet.</div>}
+          <PaytmCard
+            padded={false}
+            title={t('History')}
+            subtitle={c.entries.length === 1
+              ? t('The actual record · 1 entry · no score, you decide')
+              : t('The actual record · {count} entries · no score, you decide', { count: c.entries.length })}
+          >
+            {c.entries.length === 0 && <div className="px-4 pb-4 pt-1 text-[13px] text-ink-2">{t('No entries yet.')}</div>}
             {/* Newest entries first; the rest behind "Show more" so the screen ends after the actions and a short record. */}
             {c.entries.slice(0, historyShown).map((e) => <EntryLine key={e.id} e={e} />)}
             {c.entries.length > historyShown && (
               <button type="button" onClick={() => setHistoryShown((n) => n + HISTORY_PAGE)} className="flex h-12 w-full items-center justify-center gap-1 border-t border-line text-[14px] font-semibold text-sky-ink active:bg-chip">
-                Show {Math.min(c.entries.length - historyShown, HISTORY_PAGE)} more <ChevronDown className="size-4" strokeWidth={2} />
+                {t('Show {n} more', { n: Math.min(c.entries.length - historyShown, HISTORY_PAGE) })} <ChevronDown className="size-4" strokeWidth={2} />
               </button>
             )}
           </PaytmCard>
 
-          <PaytmCard padded={false} title="WhatsApp and reminders" subtitle="Polite messages from your shop, on your schedule">
+          <PaytmCard padded={false} title={t('WhatsApp and reminders')} subtitle={t('Polite messages from your shop, on your schedule')}>
             <PaytmRow
-              title={<label htmlFor="consent" className="cursor-pointer">Agreed to WhatsApp updates</label>}
+              title={<label htmlFor="consent" className="cursor-pointer">{t('Agreed to WhatsApp updates')}</label>}
               right={<Switch id="consent" checked={c.consent === 'granted'} onCheckedChange={(v) => void patchCustomer(c.id, { consent: v ? 'granted' : c.consent === 'opted_out' ? 'opted_out' : 'pending' })} />}
             />
             <PaytmRow
-              title={<label htmlFor="paused" className="cursor-pointer">Pause reminders</label>}
+              title={<label htmlFor="paused" className="cursor-pointer">{t('Pause reminders')}</label>}
               right={<Switch id="paused" checked={c.reminders_paused} onCheckedChange={(v) => void patchCustomer(c.id, { reminders_paused: v })} />}
             />
             <PaytmRow
-              title="Message language"
+              title={t('Message language')}
               right={
                 <Select value={c.language} onValueChange={(v) => void patchCustomer(c.id, { language: v })}>
-                  <SelectTrigger aria-label="Message language" className="font-sans"><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label={t('Message language')} className="font-sans"><SelectValue /></SelectTrigger>
                   <SelectContent align="end">{LANGS.map((l) => <SelectItem key={l.code} value={l.code}>{l.native}</SelectItem>)}</SelectContent>
                 </Select>
               }
             />
             <form className="p-row flex min-h-14 items-center gap-3 px-4 py-2" onSubmit={(e) => { e.preventDefault(); void patchCustomer(c.id, { phone }); }}>
-              <label htmlFor="phone" className="shrink-0 text-[15px] font-semibold text-ink">WhatsApp number</label>
+              <label htmlFor="phone" className="shrink-0 text-[15px] font-semibold text-ink">{t('WhatsApp number')}</label>
               <input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" className="h-11 min-w-0 flex-1 rounded-full bg-chip px-3.5 text-right text-[14px] tabular-nums text-ink outline-none placeholder:text-ink-3 focus:ring-2 focus:ring-sky" />
-              {phone !== (c.phone ?? '') && <PaytmButton type="submit" variant="ghost" size="sm" className="-mr-2 px-2">Save</PaytmButton>}
+              {phone !== (c.phone ?? '') && <PaytmButton type="submit" variant="ghost" size="sm" className="-mr-2 px-2">{t('Save')}</PaytmButton>}
             </form>
-            {c.next_reminder_at && c.balance > 0 && <div className="px-4 pb-3 pt-1 text-[12px] text-ink-2">Next reminder: {dateTime(c.next_reminder_at) || 'scheduled'}.</div>}
+            {c.next_reminder_at && c.balance > 0 && <div className="px-4 pb-3 pt-1 text-[12px] text-ink-2">{t('Next reminder: {when}.', { when: dateTime(c.next_reminder_at) || t('scheduled') })}</div>}
           </PaytmCard>
         </div>
       </Scroll>
@@ -164,22 +174,23 @@ export function CustomerDetailPage() {
  * badge; cash notes read grey with a "Cash" badge, so the difference shows without reading. Udhaar amber; reversal grey.
  */
 function EntryLine({ e }: { e: Entry }) {
+  const t = useT();
   const verified = e.type === 'repayment' && (e.source === 'mock' || e.source === 'paytm');
   const cash = e.type === 'repayment' && !verified;
   const Icon = e.type === 'credit' ? ShoppingBasket : e.type === 'reversal' ? Undo2 : e.type === 'adjustment' ? PenLine : verified ? IndianRupee : e.type === 'cash_sale' ? Link2 : HandCoins;
   const iconCls = e.type === 'credit' ? 'bg-warning-bg text-warning' : e.type === 'reversal' || e.type === 'adjustment' ? 'bg-chip text-ink-3' : verified ? 'bg-success-bg text-success' : 'bg-chip text-ink-2';
-  const title = e.type === 'credit' ? `${inr(e.amount)}${e.items.length ? ' · ' + e.items.join(', ') : ' · udhaar'}`
-    : e.type === 'repayment' ? `−${inr(e.amount)} · ${verified ? (e.source === 'paytm' ? 'Paytm' : 'payment link') : 'cash'}`
-    : e.type === 'cash_sale' ? `${inr(e.amount)} · cash sale`
-    : e.type === 'adjustment' ? `${e.change > 0 ? '+' : '−'}${inr(e.amount)} · balance corrected` : `${inr(e.amount)} · entry removed`;
-  const sub = [timeAgo(e.created_at), e.status === 'disputed' ? 'customer says wrong' : e.customer_ack === 'ack' ? 'confirmed by customer' : e.customer_ack === 'kept' ? 'flagged, kept by you' : e.customer_ack === 'removed' ? 'flagged, removed' : e.source === 'voice' ? 'by voice' : ''].filter(Boolean).join(' · ');
+  const title = e.type === 'credit' ? `${inr(e.amount)} · ${e.items.length ? e.items.join(', ') : t('udhaar')}`
+    : e.type === 'repayment' ? `−${inr(e.amount)} · ${verified ? (e.source === 'paytm' ? 'Paytm' : t('payment link')) : t('cash')}`
+    : e.type === 'cash_sale' ? `${inr(e.amount)} · ${t('cash sale')}`
+    : e.type === 'adjustment' ? `${e.change > 0 ? '+' : '−'}${inr(e.amount)} · ${t('balance corrected')}` : `${inr(e.amount)} · ${t('entry removed')}`;
+  const sub = [timeAgo(e.created_at), e.status === 'disputed' ? t('customer says wrong') : e.customer_ack === 'ack' ? t('confirmed by customer') : e.customer_ack === 'kept' ? t('flagged, kept by you') : e.customer_ack === 'removed' ? t('flagged, removed') : e.source === 'voice' ? t('by voice') : ''].filter(Boolean).join(' · ');
   const badge = e.status === 'disputed' ? <StatusChip kind="flagged" /> : verified ? <StatusChip kind="verified" /> : cash ? <StatusChip kind="cashNoted" /> : e.type === 'reversal' ? <StatusChip kind="removed" /> : null;
   return (
     <PaytmRow
       avatar={<span className={cn('grid size-10 shrink-0 place-items-center rounded-full', iconCls)}><Icon className="size-5" strokeWidth={1.8} aria-hidden="true" /></span>}
       title={<span className={cn('tabular-nums', verified && 'text-paid', cash && 'text-ink', e.type === 'reversal' && 'text-ink-2')}>{title}</span>}
       sub={sub || undefined}
-      right={e.type === 'credit' && e.customer_ack === 'ack' ? <Send className="ml-auto size-4 text-success" aria-label="Confirmed" /> : undefined}
+      right={e.type === 'credit' && e.customer_ack === 'ack' ? <Send className="ml-auto size-4 text-success" aria-label={t('Confirmed')} /> : undefined}
       rightSub={badge ?? undefined}
     />
   );

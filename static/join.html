@@ -8,7 +8,7 @@
   <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Hind:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Hind:wght@400;600;700&family=Hind+Guntur:wght@400;600&family=Hind+Madurai:wght@400;600&family=Hind+Mysuru:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
@@ -19,15 +19,15 @@
       <p class="to" id="sub">See what you owe and get gentle reminders on WhatsApp.</p>
       <form id="form" class="fields" novalidate>
         <div class="field">
-          <label for="name">Your name</label>
+          <label for="name" id="nameLabel">Your name</label>
           <input id="name" autocomplete="name" required>
         </div>
         <div class="field">
-          <label for="phone">WhatsApp number</label>
+          <label for="phone" id="phoneLabel">WhatsApp number</label>
           <input id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="98765 43210" required>
         </div>
         <div class="field">
-          <label for="language">Message language</label>
+          <label for="language" id="langLabel">Message language</label>
           <select id="language">
             <option value="hi-IN">हिन्दी</option>
             <option value="kn-IN">ಕನ್ನಡ</option>
@@ -37,7 +37,7 @@
           </select>
         </div>
         <label class="check"><input id="consent" type="checkbox"> <span id="consentText">Send me my udhaar entries and payment reminders on WhatsApp. I can reply STOP anytime.</span></label>
-        <button class="btn btn-primary" type="submit">Join</button>
+        <button class="btn btn-primary" type="submit" id="joinBtn">Join</button>
         <p id="error" class="form-error" hidden></p>
       </form>
     </section>
@@ -46,13 +46,66 @@
     import { api, h } from "/static/common.js";
     const merchantId = location.pathname.split("/").pop();
     const $ = (id) => document.getElementById(id);
+
+    // Fixed strings follow the shop's language (GET /api/join/{id} returns `language`), and then the
+    // "Message language" the customer picks, so the form reads in the language they are about to choose.
+    const UI = {
+      "en-IN": {
+        title: "Join {shop}’s khata", titlePlain: "Join my khata", sub: "See what you owe and get gentle reminders on WhatsApp.",
+        name: "Your name", phone: "WhatsApp number", lang: "Message language",
+        consent: "Send me my udhaar entries and payment reminders on WhatsApp. I can reply STOP anytime.", join: "Join",
+        welcome: "You’re in, {name}", welcomeSub: "You’ll get your entries and reminders on WhatsApp. Reply STOP anytime to stop them.",
+      },
+      "hi-IN": {
+        title: "{shop} के खाते से जुड़ें", titlePlain: "मेरे खाते से जुड़ें", sub: "देखें कि आप पर कितना बकाया है और WhatsApp पर विनम्र रिमाइंडर पाएँ।",
+        name: "आपका नाम", phone: "WhatsApp नंबर", lang: "संदेश की भाषा",
+        consent: "मुझे मेरी उधार एंट्री और भुगतान रिमाइंडर WhatsApp पर भेजें। मैं कभी भी STOP लिख सकता/सकती हूँ।", join: "जुड़ें",
+        welcome: "आप जुड़ गए, {name}", welcomeSub: "आपको अपनी एंट्री और रिमाइंडर WhatsApp पर मिलेंगे। बंद करने के लिए कभी भी STOP लिखें।",
+      },
+      "kn-IN": {
+        title: "{shop} ಖಾತೆಗೆ ಸೇರಿ", titlePlain: "ನನ್ನ ಖಾತೆಗೆ ಸೇರಿ", sub: "ನೀವು ಎಷ್ಟು ಕೊಡಬೇಕೆಂದು ನೋಡಿ, WhatsApp ನಲ್ಲಿ ಸೌಮ್ಯ ನೆನಪುಗಳನ್ನು ಪಡೆಯಿರಿ.",
+        name: "ನಿಮ್ಮ ಹೆಸರು", phone: "WhatsApp ನಂಬರ್", lang: "ಸಂದೇಶದ ಭಾಷೆ",
+        consent: "ನನ್ನ ಸಾಲದ ನಮೂದುಗಳು ಮತ್ತು ಪಾವತಿ ನೆನಪುಗಳನ್ನು WhatsApp ನಲ್ಲಿ ಕಳುಹಿಸಿ. ಯಾವಾಗ ಬೇಕಾದರೂ STOP ಎಂದು ಉತ್ತರಿಸಬಹುದು.", join: "ಸೇರಿ",
+        welcome: "ನೀವು ಸೇರಿದ್ದೀರಿ, {name}", welcomeSub: "ನಿಮ್ಮ ನಮೂದುಗಳು ಮತ್ತು ನೆನಪುಗಳು WhatsApp ನಲ್ಲಿ ಬರುತ್ತವೆ. ನಿಲ್ಲಿಸಲು ಯಾವಾಗ ಬೇಕಾದರೂ STOP ಎಂದು ಕಳುಹಿಸಿ.",
+      },
+      "ta-IN": {
+        title: "{shop} கணக்கில் இணையுங்கள்", titlePlain: "என் கணக்கில் இணையுங்கள்", sub: "நீங்கள் எவ்வளவு தர வேண்டும் என்று பாருங்கள், WhatsApp இல் பணிவான நினைவூட்டல்கள் பெறுங்கள்.",
+        name: "உங்கள் பெயர்", phone: "WhatsApp எண்", lang: "செய்தி மொழி",
+        consent: "என் கடன் பதிவுகளையும் பணம் செலுத்தும் நினைவூட்டல்களையும் WhatsApp இல் அனுப்புங்கள். எப்போது வேண்டுமானாலும் STOP என பதிலளிக்கலாம்.", join: "இணை",
+        welcome: "நீங்கள் இணைந்தீர்கள், {name}", welcomeSub: "உங்கள் பதிவுகளும் நினைவூட்டல்களும் WhatsApp இல் வரும். நிறுத்த எப்போது வேண்டுமானாலும் STOP என அனுப்புங்கள்.",
+      },
+      "te-IN": {
+        title: "{shop} ఖాతాలో చేరండి", titlePlain: "నా ఖాతాలో చేరండి", sub: "మీరు ఎంత ఇవ్వాలో చూడండి, WhatsApp లో మర్యాదపూర్వక గుర్తులు పొందండి.",
+        name: "మీ పేరు", phone: "WhatsApp నంబర్", lang: "మెసేజ్ భాష",
+        consent: "నా అప్పు ఎంట్రీలు మరియు చెల్లింపు గుర్తులను WhatsApp లో పంపండి. ఎప్పుడైనా STOP అని జవాబివ్వవచ్చు.", join: "చేరండి",
+        welcome: "మీరు చేరారు, {name}", welcomeSub: "మీ ఎంట్రీలు, గుర్తులు WhatsApp లో వస్తాయి. ఆపడానికి ఎప్పుడైనా STOP అని పంపండి.",
+      },
+    };
+    let shop = null;
+    let T = UI["en-IN"];
+    const t = (key, v = {}) => T[key].replace(/\{(\w+)\}/g, (_, k) => (k in v ? v[k] : `{${k}}`));
+
+    function apply(lang) {
+      T = UI[lang] || UI["en-IN"];
+      document.documentElement.lang = (lang || "en-IN").split("-")[0];
+      $("title").textContent = shop ? t("title", { shop }) : t("titlePlain");
+      $("sub").textContent = t("sub");
+      $("nameLabel").textContent = t("name");
+      $("phoneLabel").textContent = t("phone");
+      $("langLabel").textContent = t("lang");
+      $("consentText").textContent = t("consent");
+      $("joinBtn").textContent = t("join");
+    }
+
     try {
       const info = await api(`/api/join/${merchantId}`);
-      $("title").textContent = `Join ${info.shop}’s khata`;
+      shop = info.shop;
       $("language").value = info.language;
+      apply(info.language);
     } catch (err) {
       $("sub").textContent = err.message;
     }
+    $("language").addEventListener("change", (e) => apply(e.target.value));
     $("form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const error = $("error");
@@ -61,8 +114,8 @@
         const r = await api(`/api/join/${merchantId}`, { method: "POST", body: {
           name: $("name").value, phone: $("phone").value, language: $("language").value, consent: $("consent").checked,
         } });
-        $("panel").replaceChildren(h("h1", {}, `You’re in, ${r.name}`),
-          h("p", { class: "to" }, "You’ll get your entries and reminders on WhatsApp. Reply STOP anytime to stop them."));
+        $("panel").replaceChildren(h("h1", {}, t("welcome", { name: r.name })),
+          h("p", { class: "to" }, t("welcomeSub")));
       } catch (err) {
         error.hidden = false;
         error.textContent = err.message;
