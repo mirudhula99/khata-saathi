@@ -1,0 +1,37 @@
+# Fly.io deploy. First time: fly launch --copy-config --no-deploy, then see README "Deploy on Fly.io".
+app = "khata-saathi"
+primary_region = "bom"
+
+[build]
+
+[env]
+  MESSAGING_CHANNEL = "simulator"
+  PAYMENT_PROVIDER = "mock"
+  MERCHANT_LANGUAGE = "kn-IN"
+  SCHEDULER_ENABLED = "true"
+  DEMO_MODE = "true"
+  QUIET_HOURS = "9-20"
+
+# The SQLite database, demo clock and voice cache survive deploys on this volume.
+[mounts]
+  source = "khata_data"
+  destination = "/app/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Keep one machine always on: reminders run every 30s and live screens hold SSE connections.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/manifest.webmanifest"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

@@ -1,0 +1,13 @@
+.env
+.venv
+.venv-win
+.vscode
+.claude
+.superdesign
+.git
+data
+docs
+tests
+web
+**/__pycache__
+**/.DS_Store

@@ -134,6 +134,28 @@ WhatsApp only delivers free-form and button messages to people who messaged your
 - Keep `LLM_REASONING_EFFORT` empty for extraction. There are no automatic retries.
 - Check usage in the Sarvam dashboard a few times on demo day.
 
+## Deploy on Fly.io
+
+The repo has a `Dockerfile` (Python + ffmpeg, serves the prebuilt `static/app`) and a `fly.toml` (Mumbai, one always-on machine, a volume for the database). One-time setup:
+
+```sh
+fly auth login
+fly launch --copy-config --no-deploy        # pick a free app name if "khata-saathi" is taken
+fly volumes create khata_data --region bom --size 1
+KEY=$(openssl rand -hex 16); echo "Merchant key: $KEY"   # note it down
+fly secrets set SARVAM_API_KEY=... \
+  MERCHANT_KEY=$KEY \
+  PAYMENT_WEBHOOK_SECRET=$(openssl rand -hex 16) \
+  PUBLIC_BASE_URL=https://<your-app>.fly.dev
+fly deploy
+```
+
+Then open `https://<your-app>.fly.dev/?key=<MERCHANT_KEY>` once on each device (the startup line in `fly logs` also prints this link). On Fly no request counts as "this computer", so the key is always needed.
+
+- Redeploy after changes: rebuild the React app if you touched `web/` (`npm run build`), then `fly deploy`.
+- The first start on an empty volume loads the demo data. To reset it later: `curl -X POST https://<your-app>.fly.dev/api/demo/seed -b khata_key=<MERCHANT_KEY>`.
+- Logs: `fly logs`. Keep it to one machine: SQLite, reminders and live screens all run in one process.
+
 ## Troubleshooting
 
 | Problem | Fix |
