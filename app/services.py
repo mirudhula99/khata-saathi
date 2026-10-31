@@ -538,10 +538,7 @@ def after_credit_saved(db: Session, merchant: Merchant, customer: Customer, entr
         bal = rupees(ledger.balance_paise(db, customer.id))
         body = customer_text(lang, "credit_note", shop=merchant.shop_name, amount=rupees(entry.amount_paise),
                              items=items_text(entry.items), balance=bal)
-        buttons = [{"id": f"ack:{entry.id}", "title": customer_text(lang, "btn_ack")},
-                   {"id": f"dispute:{entry.id}", "title": customer_text(lang, "btn_dispute")}]
-        messaging.send(db, customer, kind="credit_note", body=f"{body}\n{customer_text(lang, 'footer')}",
-                       buttons=buttons)
+        messaging.send(db, customer, kind="credit_note", body=f"{body}\n{customer_text(lang, 'footer')}")
     ensure_reminder(db, customer, clock.now() + timedelta(days=settings.default_due_days))
     db.commit()
 
@@ -1004,14 +1001,12 @@ def update_customer(db: Session, customer_id: int, changes: dict) -> dict:
                                 "Raise the limit first.")
         entry = ledger.adjust_balance(db, customer, balance * 100)
         if entry and entry.signed_paise > 0 and customer.consent == "granted":
-            # Asked, like any udhaar: the customer can confirm the increase or flag it as wrong.
+            # Told, like any udhaar.
             merchant = db.get(Merchant, customer.merchant_id)
             lang = customer.language
             db.flush()
             messaging.send(db, customer, kind="credit_note", body=customer_text(
-                lang, "balance_corrected", shop=merchant.shop_name, amount=rupees(entry.amount_paise), balance=balance),
-                buttons=[{"id": f"ack:{entry.id}", "title": customer_text(lang, "btn_ack")},
-                         {"id": f"dispute:{entry.id}", "title": customer_text(lang, "btn_dispute")}])
+                lang, "balance_corrected", shop=merchant.shop_name, amount=rupees(entry.amount_paise), balance=balance))
         if entry:
             if balance <= 0:
                 cancel_reminders(db, customer.id, "balance set to zero")

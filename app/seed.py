@@ -74,13 +74,7 @@ def _seed_messages(db: Session, merchant: Merchant, customer: Customer) -> None:
         if e.type == "credit":
             body = customer_text(lang, "credit_note", shop=merchant.shop_name, amount=ledger.rupees(e.amount_paise),
                                  items=items_text(e.items), balance=ledger.rupees(running))
-            out(e.created_at, "credit_note", f"{body}\n{customer_text(lang, 'footer')}",
-                buttons=[{"id": f"ack:{e.id}", "title": customer_text(lang, "btn_ack")},
-                         {"id": f"dispute:{e.id}", "title": customer_text(lang, "btn_dispute")}])
-            db.add(Message(customer_id=customer.id, direction="in", channel=channel, kind="reply",
-                           body=customer_text(lang, "btn_ack"), status="received",
-                           created_at=e.created_at + timedelta(minutes=12)))
-            e.customer_ack = "ack"
+            out(e.created_at, "credit_note", f"{body}\n{customer_text(lang, 'footer')}")
         elif e.type == "repayment":
             out(e.created_at, "receipt", customer_text(lang, "receipt", name=customer.display_name, shop=merchant.shop_name,
                                                        amount=ledger.rupees(e.amount_paise),

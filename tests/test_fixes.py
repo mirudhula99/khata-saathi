@@ -35,6 +35,10 @@ class GuardrailTests(unittest.TestCase):
     def tearDownClass(cls):
         cls._client_cm.__exit__(None, None, None)
 
+    def last_entry(self, customer_id):
+        """The id of the customer's newest ledger entry (what a dispute targets)."""
+        return self.client.get(f"/api/customers/{customer_id}/ledger").json()["entries"][0]["id"]
+
     def setUp(self):
         seed.reset_and_seed()
         main_module._join_times.clear()  # the join rate limit is per process
@@ -85,8 +89,7 @@ class GuardrailTests(unittest.TestCase):
         suresh = self.customers["Suresh|"]["id"]  # owes 150
         reply = self.say("Suresh ku 200 udhaar")
         self.client.post(f"/api/actions/{reply['pending']['id']}/confirm", json={})
-        messages = self.client.get(f"/api/customer-view/{suresh}").json()["messages"]
-        dispute_id = [m for m in messages if m["kind"] == "credit_note"][-1]["buttons"][1]["id"]
+        dispute_id = f"dispute:{self.last_entry(suresh)}"
         reply = self.say("Suresh paid 300 cash")
         self.client.post(f"/api/actions/{reply['pending']['id']}/confirm", json={})
         result = self.client.post(f"/api/customer-view/{suresh}/reply", json={"button_id": dispute_id}).json()
@@ -97,8 +100,7 @@ class GuardrailTests(unittest.TestCase):
         lakshmi = self.customers["Lakshmi|Gandhi Nagar"]["id"]
         reply = self.say("Lakshmi ku 150 udhaar")
         self.client.post(f"/api/actions/{reply['pending']['id']}/confirm", json={})
-        messages = self.client.get(f"/api/customer-view/{lakshmi}").json()["messages"]
-        dispute_id = [m for m in messages if m["kind"] == "credit_note"][-1]["buttons"][1]["id"]
+        dispute_id = f"dispute:{self.last_entry(lakshmi)}"
         result = self.client.post(f"/api/customer-view/{lakshmi}/reply", json={"button_id": dispute_id}).json()
         self.assertEqual(result["action"], "dispute")
         self.assertEqual(self.balance(lakshmi), 0)
@@ -330,13 +332,13 @@ class GuardrailTests(unittest.TestCase):
         self.client.post(f"/api/customer-view/{ravi}/reply", json={"text": "START"})  # the customer can
         self.assertEqual(self.client.get(f"/api/customers/{ravi}").json()["consent"], "granted")
 
-    def test_raising_a_balance_asks_the_customer_who_can_flag_it(self):
+    def test_raising_a_balance_tells_the_customer_who_can_still_flag_it(self):
         suresh = self.customers["Suresh|"]["id"]  # owes 150
         self.client.patch(f"/api/customers/{suresh}", json={"balance": 400})
         msg = self.client.get(f"/api/customer-view/{suresh}").json()["messages"][-1]
         self.assertIn("₹250", msg["body"])
-        self.assertEqual([b["id"].split(":")[0] for b in msg["buttons"]], ["ack", "dispute"])
-        self.client.post(f"/api/customer-view/{suresh}/reply", json={"button_id": msg["buttons"][1]["id"]})
+        self.assertEqual(msg["buttons"], [])  # told, not asked
+        self.client.post(f"/api/customer-view/{suresh}/reply", json={"button_id": f"dispute:{self.last_entry(suresh)}"})
         self.assertEqual(self.balance(suresh), 150)  # the increase is held back until the shop checks it
         ravi = self.customers["Ravi|"]["id"]  # a decrease isn't sent to the customer
         n = len(self.client.get(f"/api/customer-view/{ravi}").json()["messages"])
@@ -346,8 +348,7 @@ class GuardrailTests(unittest.TestCase):
     def test_balance_cannot_change_while_an_entry_is_flagged(self):
         kumaran = self.customers["Kumaran|Bus stand"]["id"]
         self.confirm(self.say("Kumaran ku 200 udhaar"))
-        msg = [m for m in self.client.get(f"/api/customer-view/{kumaran}").json()["messages"] if m["kind"] == "credit_note"][-1]
-        self.client.post(f"/api/customer-view/{kumaran}/reply", json={"button_id": msg["buttons"][1]["id"]})
+        self.client.post(f"/api/customer-view/{kumaran}/reply", json={"button_id": f"dispute:{self.last_entry(kumaran)}"})
         r = self.client.patch(f"/api/customers/{kumaran}", json={"balance": 200})
         self.assertEqual(r.status_code, 400)
         self.assertIn("flagged an entry", r.json()["detail"])

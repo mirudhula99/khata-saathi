@@ -27,6 +27,10 @@ class NotificationTests(unittest.TestCase):
     def tearDownClass(cls):
         cls._client_cm.__exit__(None, None, None)
 
+    def last_entry(self, customer_id):
+        """The id of the customer's newest ledger entry (what a dispute targets)."""
+        return self.client.get(f"/api/customers/{customer_id}/ledger").json()["entries"][0]["id"]
+
     def setUp(self):
         seed.reset_and_seed()
         self.customers = {c["name"] + "|" + c["note"]: c for c in self.client.get("/api/state").json()["customers"]}
@@ -53,9 +57,7 @@ class NotificationTests(unittest.TestCase):
 
     def test_flag_creates_a_task_and_resolving_clears_it(self):
         self.udhaar("Lakshmi 150 udhaar rice")
-        view = self.client.get(f"/api/customer-view/{self.lakshmi}").json()
-        note = [m for m in view["messages"] if m["kind"] == "credit_note"][-1]
-        flag = next(b["id"] for b in note["buttons"] if b["id"].startswith("dispute:"))
+        flag = f"dispute:{self.last_entry(self.lakshmi)}"
         self.client.post(f"/api/customer-view/{self.lakshmi}/reply", json={"button_id": flag})
         data = self.notifications()
         flagged = [i for i in data["items"] if i["kind"] == "flagged" and i["customer_id"] == self.lakshmi]

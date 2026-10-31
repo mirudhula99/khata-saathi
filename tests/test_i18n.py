@@ -32,6 +32,10 @@ class LanguageSwitchTests(unittest.TestCase):
     def tearDownClass(cls):
         cls._client_cm.__exit__(None, None, None)
 
+    def last_entry(self, customer_id):
+        """The id of the customer's newest ledger entry (what a dispute targets)."""
+        return self.client.get(f"/api/customers/{customer_id}/ledger").json()["entries"][0]["id"]
+
     def setUp(self):
         seed.reset_and_seed()
         self.client.patch("/api/merchant", json={"language": "en-IN"})
@@ -46,9 +50,7 @@ class LanguageSwitchTests(unittest.TestCase):
     def flag_an_entry(self):
         p = self.client.post("/api/command", json={"text": "Lakshmi 150 udhaar rice", "lang": "en-IN"}).json()["pending"]
         self.client.post(f"/api/actions/{p['id']}/confirm", json={"lang": "en-IN"})
-        view = self.client.get(f"/api/customer-view/{self.lakshmi}").json()
-        note = [m for m in view["messages"] if m["kind"] == "credit_note"][-1]
-        flag = next(b["id"] for b in note["buttons"] if b["id"].startswith("dispute:"))
+        flag = f"dispute:{self.last_entry(self.lakshmi)}"
         self.client.post(f"/api/customer-view/{self.lakshmi}/reply", json={"button_id": flag})
 
     def test_phrase_tables_cover_every_language(self):
