@@ -1,5 +1,7 @@
+import { useRef, useState } from 'react';
 import { Languages, QrCode, Users, type LucideIcon } from 'lucide-react';
 import { AppShell, HeaderBand, Scroll } from '@/components/AppShell';
+import { DemoSheet } from '@/components/DemoSheet';
 import { LanguageSelect } from '@/components/LanguageSelect';
 import { PaytmBadge, PaytmCard, PaytmRow } from '@/components/paytm';
 import { cn } from '@/lib/utils';
@@ -18,10 +20,20 @@ function IconCircle({ icon: Icon, muted, className }: { icon: LucideIcon; muted?
 export function AccountPage() {
   const { state } = useKhata();
   const name = state?.merchant.shop_name ?? 'Khata Saathi';
+  // Hidden demo tools: hold the "More" title for a second (DEMO_MODE only). No visible hint, by design.
+  const [demo, setDemo] = useState(false);
+  const hold = useRef(0);
+  const demoOn = Boolean(state?.health.demo_mode);
+  const press = () => { if (demoOn) hold.current = window.setTimeout(() => setDemo(true), 900); };
+  const release = () => window.clearTimeout(hold.current);
+  const title = (
+    <span className="select-none [-webkit-touch-callout:none]" onPointerDown={press} onPointerUp={release} onPointerLeave={release}
+      onPointerCancel={release} onContextMenu={(e) => e.preventDefault()}>More</span>
+  );
 
   return (
     <AppShell>
-      <HeaderBand title="More" />
+      <HeaderBand title={title} />
       <Scroll className="pb-6">
         <div className="flex flex-col gap-3 px-4 pt-1">
           <PaytmCard title="Shop" padded={false}>
@@ -41,6 +53,7 @@ export function AccountPage() {
           <p className="pt-1 text-center text-[11px] text-ink-2">Khata Saathi · Team Rupeeriot · Paytm Build for India AI Hackathon, Bengaluru</p>
         </div>
       </Scroll>
+      {demoOn && <DemoSheet open={demo} onOpenChange={setDemo} />}
     </AppShell>
   );
 }

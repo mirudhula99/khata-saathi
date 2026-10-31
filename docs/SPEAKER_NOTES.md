@@ -6,7 +6,7 @@ Total: 3 minutes talk + 90 seconds live demo + Q&A. You present. Your friend dri
 
 1. Laptop on your phone hotspot, not venue Wi-Fi. Chrome open.
 2. Restart the server: Ctrl+C in the server window, then `run-windows.cmd` (or the uvicorn command). Open http://localhost:8000.
-3. More → **Reset demo data** → Reset. Check the home chart says ₹1,240 pending · 3 customers.
+3. More → hold the **More** title → **Reset demo data** → Reset. Check the home chart says ₹1,240 pending · 3 customers.
 4. Second tab: Customer's phone, pick **Lakshmi**. Keep it open; you will switch to it twice.
 5. Decide voice or type. If the room is loud or the key is off, type. The flow is identical. Do not fight the mic on stage.
 6. Language dropdown: Tamil (or whatever you will actually speak). Read-backs come in that language.
@@ -33,7 +33,7 @@ Total: 3 minutes talk + 90 seconds live demo + Q&A. You present. Your friend dri
 | 1 | Home. Type or say **"Who owes me money?"** | "First, the question every shopkeeper asks at closing time." Reply: *3 customers owe ₹1,240. Ramesh ₹800 for 40 days…* "That's the whole notebook, answered in one sentence." |
 | 2 | Type or say **"Lakshmi ku 150 rupees udhaar, 2 kg rice"** | "Now a new entry, the way a merchant actually talks: Tamil and English mixed." Read-back appears. "Nothing is saved yet. AI understands, code calculates. The merchant approves." Tap **Save**. |
 | 3 | Switch to the Lakshmi tab | "Lakshmi gets this on WhatsApp instantly, in her language, with Confirm and Flag. Two-sided entries: no more 'I never took that much'." Tap **Confirm**. Switch back. |
-| 4 | More → **Move time forward 3 days** | "On stage we can't wait three days, so we move the clock. Reminders go out on a schedule, 9am to 8pm, at most one a day, only with consent." Caption now shows the shifted date. |
+| 4 | More → hold the **More** title → **Move time forward 3 days** | "On stage we can't wait three days, so we move the clock. Reminders go out on a schedule, 9am to 8pm, at most one a day, only with consent." Caption now shows the shifted date. |
 | 5 | Lakshmi tab: the reminder bubble | "This is the actual message. Polite, from the shop, with a Paytm link." Tap **Pay now** → **Pay ₹150**. |
 | 6 | Back to home. Toast says Lakshmi paid. Chart updates. | "Verified payment, balance zero, reminders stop by themselves. Only a verified payment closes udhaar; cash is noted separately." |
 | 7 | Type or say **"Who owes me money?"** again | "Back to the original three. Every rupee accounted for." |
@@ -54,7 +54,7 @@ Friend says: "Sarvam speech-to-text for code-mixed Indian speech, an LLM that on
 
 - Mic does nothing: tap the type field and type the same sentence. Say "noisy room, I'll type it". Nobody minds.
 - Read-back comes back wrong: type "No, 150". That IS the correction feature. Say so.
-- Server error toast: More → Reset demo data, start the demo from step 1. 40 seconds lost, not the pitch.
+- Server error toast: More → hold the title → Reset demo data, start the demo from step 1. 40 seconds lost, not the pitch.
 - Chrome tab dies: the backup video on your phone. Narrate over it.
 
 ## Judge questions you own (friend takes the AI ones)

@@ -81,13 +81,15 @@ Roles: one person is the merchant (phone with the app), one is Lakshmi (second p
 
 1. **Record.** Merchant taps the mic and says *“Lakshmi ku 150 rupees udhaar, 2 kg rice”*. The app reads it back. Merchant says *“yes”* (or taps Save).
 2. **Customer confirms.** Lakshmi’s screen shows the entry with **Correct / Wrong amount** buttons.
-3. **Remind.** Demo → **Move time forward 3 days**. Lakshmi gets a polite reminder with **Pay now**.
+3. **Remind.** Demo tools → **Move time forward 3 days**. Lakshmi gets a polite reminder with **Pay now**.
 4. **Collect.** Lakshmi pays ₹100 of ₹150. The shop phone announces *“Lakshmi paid ₹100. ₹50 left.”*
 5. **Ask.** Merchant asks *“Who owes me money?”* (answer: 3 customers owe ₹1,240, Ramesh ₹800 for 40 days) and *“How much does Ravi owe?”*
 6. **Which Ramesh?** Merchant says *“Ramesh paid 300 cash”*. The app asks which Ramesh.
 7. **Request.** Merchant says *“Ask Ravi for 290”*. Ravi gets a payment link.
 
-Rehearse with **Demo → Reset demo data** before each run.
+Rehearse with **Demo tools → Reset demo data** before each run.
+
+**Demo tools are hidden:** on the **More** tab, press and hold the **More** title for a second. A sheet opens with Move time forward, Send due reminders now, Customer's phone (Lakshmi) and Reset demo data. Nothing on screen points to it, and it only works with `DEMO_MODE=true`. The same tools are also under **Demo** on `/legacy`.
 
 Reminders only go out between 9am and 8pm IST (`QUIET_HOURS=9-20`). **Move time forward** ignores this, so an evening demo still sends them.
 
