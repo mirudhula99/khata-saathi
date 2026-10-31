@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react';
-import { Languages, Pencil, Search, Users, type LucideIcon } from 'lucide-react';
+import { AudioLines, Languages, Pencil, Search, Speaker, Users, type LucideIcon } from 'lucide-react';
 import { AppShell, HeaderBand, Scroll } from '@/components/AppShell';
 import { CustomerEditSheet } from '@/components/CustomerEditSheet';
 import { DemoSheet } from '@/components/DemoSheet';
@@ -106,6 +106,8 @@ export function AccountPage() {
           </PaytmCard>
 
           <PaytmCard title={t('Coming soon')} padded={false}>
+            <PaytmRow avatar={<IconCircle icon={Speaker} muted />} title={t('Entries from the Soundbox')} sub={t('Speak to your Paytm Soundbox to add udhaar, no phone needed')} rightSub={<PaytmBadge tone="grey">{t('Soon')}</PaytmBadge>} disabled />
+            <PaytmRow avatar={<IconCircle icon={AudioLines} muted />} title={t('Voice activation phrase')} sub={t('Say “Hey Saathi” to start an entry, hands-free')} rightSub={<PaytmBadge tone="grey">{t('Soon')}</PaytmBadge>} disabled />
             <PaytmRow avatar={<IconCircle icon={Users} muted />} title={t('Family khata')} sub={t('One account for a household')} rightSub={<PaytmBadge tone="grey">{t('Soon')}</PaytmBadge>} disabled />
           </PaytmCard>
 
