@@ -32,7 +32,7 @@ Other devices need the one-time `/?key=<MERCHANT_KEY>` link printed at startup; 
 
 ## Seed data (matches the deck)
 
-Shanthi Stores, 20 customers. Exactly 3 owe: Ramesh (Gandhi Street) ₹800 for 40 days, Ravi ₹290 for 12 days, Suresh ₹150 for 5 days, total ₹1,240. Lakshmi starts at zero for the hero entry. A second Ramesh (Teacher) exists for the "Which Ramesh?" moment. Seeded debtors have scheduled reminders, so "Move time forward 3 days" sends them. "Who owes me money?" answers: "3 customers owe ₹1,240. Most: Ramesh ₹800 for 40 days, Ravi ₹290, Suresh ₹150."
+Shanthi Stores, 20 customers. 6 owe ₹2,000, three per channel. WhatsApp: Ramesh (Gandhi Street) ₹800 for 40 days, Fatima ₹260, Priya ₹180. Paytm app: Kumaran ₹320, Ravi ₹290 for 12 days, Suresh ₹150 for 5 days. Each of the six has a seeded message history (confirmed udhaar notes, receipts, yesterday's reminder). Lakshmi starts at zero for the hero entry. A second Ramesh (Teacher) exists for the "Which Ramesh?" moment. Seeded debtors have scheduled reminders, so "Move time forward 3 days" sends them. "Who owes me money?" answers: "6 customers owe ₹2,000. Most: Ramesh ₹800 for 40 days, Kumaran ₹320, Ravi ₹290."
 
 ## UI decisions that were made deliberately
 

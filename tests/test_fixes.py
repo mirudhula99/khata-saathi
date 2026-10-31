@@ -49,6 +49,7 @@ class GuardrailTests(unittest.TestCase):
     def test_confirm_saves_once_when_tapped_twice(self):
         reply = self.say("Kumaran ku 100 udhaar")
         pending_id, customer_id = reply["pending"]["id"], reply["pending"]["customer"]["id"]
+        before = self.balance(customer_id)
         statuses = []
         threads = [threading.Thread(target=lambda: statuses.append(
             self.client.post(f"/api/actions/{pending_id}/confirm", json={}).status_code)) for _ in range(5)]
@@ -57,7 +58,7 @@ class GuardrailTests(unittest.TestCase):
         for t in threads:
             t.join()
         self.assertEqual(statuses.count(200), 1)
-        self.assertEqual(self.balance(customer_id), 100)
+        self.assertEqual(self.balance(customer_id), before + 100)  # saved once, not five times
 
     def test_repayment_above_balance_is_refused(self):
         ravi = self.customers["Ravi|"]

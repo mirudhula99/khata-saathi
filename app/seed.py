@@ -16,9 +16,9 @@ from .models import Customer, LedgerEntry, Merchant, Message, Reminder
 from .resolver import name_key
 
 # name, note, language, consent, payment habit, owes now (₹), oldest unpaid (days)
-# Matches the pitch deck (slide 3): exactly 3 customers owe ₹1,240 in total,
-# Ramesh owes ₹800 for 40 days, and the live demo entry for Lakshmi starts from zero.
-# Everyone else is settled but has history, so the khata looks lived-in and
+# Six customers owe ₹2,000 in total, three on each channel: Ramesh (Gandhi Street) ₹800 for 40 days, Fatima ₹260
+# and Priya ₹180 on WhatsApp; Kumaran ₹320, Ravi ₹290 and Suresh ₹150 in the Paytm app. The live demo entry for
+# Lakshmi starts from zero. Everyone else is settled but has history, so the khata looks lived-in and
 # "What about Ravi?" has a repayment record to read out.
 CUSTOMERS = [
     ("Lakshmi", "Gandhi Nagar", "en-IN", "granted", "fast", 0, 0),
@@ -26,10 +26,10 @@ CUSTOMERS = [
     ("Ramesh", "Teacher", "en-IN", "granted", "fast", 0, 0),
     ("Ravi", "", "en-IN", "granted", "normal", 290, 12),
     ("Suresh", "", "en-IN", "granted", "normal", 150, 5),
-    ("Kumaran", "Bus stand", "en-IN", "granted", "normal", 0, 0),
-    ("Priya", "", "en-IN", "granted", "normal", 0, 0),
+    ("Kumaran", "Bus stand", "en-IN", "granted", "normal", 320, 8),
+    ("Priya", "", "en-IN", "granted", "normal", 180, 3),
     ("Arjun", "", "en-IN", "pending", "normal", 0, 0),
-    ("Fatima", "", "en-IN", "granted", "fast", 0, 0),
+    ("Fatima", "", "en-IN", "granted", "fast", 260, 6),
     ("Meena", "", "en-IN", "granted", "fast", 0, 0),
     ("Venkatesh", "", "en-IN", "pending", "slow", 0, 0),
     ("Anitha", "", "en-IN", "granted", "fast", 0, 0),
