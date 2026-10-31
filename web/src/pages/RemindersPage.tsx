@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Bell, MessageCircle, Pause, PenLine, Play, Smartphone } from 'lucide-react';
+import { Bell, Info, MessageCircle, Pause, PenLine, Play, Smartphone } from 'lucide-react';
 import { AppShell, HeaderBand, Scroll } from '@/components/AppShell';
-import { Affordance, PaytmAlert, PaytmButton, PaytmCard, PaytmRow, paytmButtonClass } from '@/components/paytm';
+import { PaytmButton, PaytmCard, PaytmRow, paytmButtonClass } from '@/components/paytm';
 import { ReminderMessageSheet } from '@/components/ReminderMessageSheet';
 import { StatusChip } from '@/components/StatusChip';
 import { api } from '@/lib/api';
@@ -20,6 +20,13 @@ export function RemindersPage() {
   const { state, remindNow, patchCustomer } = useKhata();
   const owing = (state?.customers ?? []).filter((c) => c.balance > 0).sort((a, b) => b.days - a.days);
   const [rules, setRules] = useState(false);
+  // The rules bubble closes on any tap elsewhere.
+  useEffect(() => {
+    if (!rules) return;
+    const close = () => setRules(false);
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [rules]);
   // The real message text per customer (their language, their note), from the server. One line shows under each row.
   const [previews, setPreviews] = useState<Record<number, string>>({});
   const [editing, setEditing] = useState<CustomerRowData | null>(null);
@@ -44,15 +51,22 @@ export function RemindersPage() {
             padded={false}
             title="Reminder queue"
             subtitle={owing.length ? `${owing.length} ${owing.length === 1 ? 'customer' : 'customers'} with udhaar pending` : 'Who gets reminded, and the message they get'}
-            action={<Affordance onClick={() => setRules((r) => !r)}>{rules ? 'Hide rules' : 'How it works'}</Affordance>}
+            action={
+              /* Info icon → a dark tooltip bubble with the rules. Tap again or anywhere else to close. */
+              <span className="relative inline-block">
+                <button type="button" aria-label="How reminders work" aria-expanded={rules} onClick={(e) => { e.stopPropagation(); setRules((r) => !r); }}
+                  className="-my-2 grid size-10 place-items-center rounded-full text-ink-3 active:bg-chip">
+                  <Info className="size-5" strokeWidth={1.8} />
+                </button>
+                {rules && (
+                  <span role="tooltip" className="ks-fade-up absolute right-0 top-10 z-20 w-64 rounded-xl bg-ink px-3 py-2.5 text-left text-[12px] leading-snug text-white shadow-card">
+                    Only with the customer's consent. At most one a day, 9am to 8pm. Paused while an entry is flagged. Stops at zero balance. They can reply STOP any time.
+                    <span aria-hidden="true" className="absolute -top-1.5 right-3.5 size-3 rotate-45 bg-ink" />
+                  </span>
+                )}
+              </span>
+            }
           >
-            {rules && (
-              <div className="px-4 pb-3">
-                <PaytmAlert tone="info" title="Guardrails">
-                  Needs the customer's consent. At most one reminder a day, only 9am to 8pm. Pauses while an entry is flagged. Stops the moment the balance is zero. The customer can reply STOP.
-                </PaytmAlert>
-              </div>
-            )}
             {owing.length === 0 && <div className="px-4 pb-4 text-[13px] text-ink-2">Nobody owes anything. Nothing to remind.</div>}
             {owing.map((c, i) => (
                 <div key={c.id} className={cn(i > 0 && 'border-t border-line')}>
