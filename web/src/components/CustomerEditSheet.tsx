@@ -18,6 +18,7 @@ export function CustomerEditSheet({ customer, onOpenChange }: { customer: Custom
   const [phone, setPhone] = useState('');
   const [note, setNote] = useState('');
   const [balance, setBalance] = useState('');
+  const [limit, setLimit] = useState('');
   const [error, setError] = useState('');
 
   // Fill the form when a customer is opened. Keyed on the id, not the object: live updates (a payment arriving)
@@ -25,7 +26,7 @@ export function CustomerEditSheet({ customer, onOpenChange }: { customer: Custom
   useEffect(() => {
     if (!customer) return;
     setName(customer.name); setPhone(customer.phone ?? ''); setNote(customer.note ?? '');
-    setBalance(String(customer.balance)); setError('');
+    setBalance(String(customer.balance)); setLimit(customer.credit_limit ? String(customer.credit_limit) : ''); setError('');
   }, [customer?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const owed = Number(balance);
@@ -37,11 +38,14 @@ export function CustomerEditSheet({ customer, onOpenChange }: { customer: Custom
     if (!name.trim()) { setError('Enter the customer’s name.'); return; }
     if (phone.trim() && phone.replace(/\D/g, '').length < 10) { setError('Enter a 10-digit mobile number, or leave it empty.'); return; }
     if (balance.trim() === '' || !Number.isInteger(owed) || owed < 0) { setError('Enter what they owe in whole rupees (0 if nothing).'); return; }
+    const limitValue = limit.trim() === '' ? null : Number(limit);
+    if (limitValue !== null && (!Number.isInteger(limitValue) || limitValue < 1)) { setError('Enter the credit limit in whole rupees, or leave it empty for no limit.'); return; }
     const patch: CustomerPatch = {};
     if (name.trim() !== customer.name) patch.name = name.trim();
     if (phone.trim() !== (customer.phone ?? '')) patch.phone = phone.trim();
     if (note.trim() !== (customer.note ?? '')) patch.note = note.trim();
     if (balanceChanged) patch.balance = owed;
+    if (limitValue !== (customer.credit_limit ?? null)) patch.credit_limit = limitValue;
     if (Object.keys(patch).length === 0) { onOpenChange(false); return; }
     if (await patchCustomer(customer.id, patch)) onOpenChange(false);
   };
@@ -80,6 +84,13 @@ export function CustomerEditSheet({ customer, onOpenChange }: { customer: Custom
                 {inr(customer.balance)} → {inr(owed)}. A “balance corrected” entry of {owed > customer.balance ? '+' : '−'}{inr(Math.abs(owed - customer.balance))} is added; past entries stay as they are.
               </PaytmAlert>
             )}
+            <label className="mt-1 text-[12px] font-medium text-ink-2" htmlFor="custLimit">Credit limit</label>
+            <label className="flex h-12 items-center gap-2 rounded-xl border border-line bg-card px-4 focus-within:border-sky focus-within:ring-[3px] focus-within:ring-sky/25">
+              <span className="font-display text-[18px] font-bold text-ink-2" aria-hidden="true">₹</span>
+              <input id="custLimit" inputMode="numeric" type="number" min={1} step={1} value={limit} onChange={(e) => setLimit(e.target.value)} placeholder="No limit"
+                className="h-full min-w-0 flex-1 bg-transparent text-[16px] font-semibold tabular-nums text-ink outline-none placeholder:font-normal placeholder:text-ink-3" />
+            </label>
+            <p className="text-[12px] leading-snug text-ink-2">If new udhaar takes them over this, Saathi warns you before saving.</p>
             {error && <p className="text-[12px] text-error-ink">{error}</p>}
           </div>
 

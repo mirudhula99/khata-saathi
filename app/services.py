@@ -61,7 +61,7 @@ def customer_dict(db: Session, c: Customer, bal_paise: int | None = None, with_s
         "id": c.id, "name": c.display_name, "name_latin": c.name_latin, "note": c.note, "phone": c.phone,
         "language": c.language,
         "consent": c.consent, "reminders_paused": c.reminders_paused, "reminder_note": c.reminder_note,
-        "balance": rupees(bal),
+        "credit_limit": c.credit_limit, "balance": rupees(bal),
     }
     if with_stats:
         data["stats"] = ledger.customer_stats(db, c)
@@ -141,7 +141,19 @@ def pending_dict(db: Session, p: PendingAction) -> dict:
         "items": d.get("items") or [], "payment_mode": d.get("payment_mode"), "spoken_name": d.get("spoken_name"),
         "customer": customer_dict(db, customer) if customer else None, "new_customer_name": p.new_customer_name,
         "options": [customer_dict(db, c) for c in (db.get(Customer, i) for i in (p.options or [])) if c],
+        "over_limit": _over_limit(db, p, customer) is not None,
     }
+
+
+def _over_limit(db: Session, p: PendingAction, customer: Customer | None) -> dict | None:
+    """For new udhaar: the customer's limit and what they would owe, if this entry takes them over it."""
+    amount = (p.data or {}).get("amount")
+    if p.kind != "add_credit" or customer is None or not customer.credit_limit or not amount:
+        return None
+    bal = rupees(ledger.balance_paise(db, customer.id))
+    if bal + int(amount) <= customer.credit_limit:
+        return None
+    return {"balance": bal, "total": bal + int(amount), "limit": customer.credit_limit}
 
 
 def readback(db: Session, p: PendingAction, lang: str, spoken: bool) -> str:
@@ -156,7 +168,13 @@ def readback(db: Session, p: PendingAction, lang: str, spoken: bool) -> str:
     if p.kind == "request_payment" and amount is None and customer:
         amount = rupees(ledger.balance_paise(db, customer.id))
     values = {"name": name, "amount": amount or 0, "items": items_text(d.get("items"))}
+    if p.kind == "undo":
+        return say(lang, "confirm_undo_credit" if d.get("entry_type") == "credit" else "confirm_undo_repayment",
+                   spoken, **values)
     if p.kind == "add_credit":
+        limit = _over_limit(db, p, customer)
+        if limit:
+            return say(lang, "confirm_credit_over_limit", spoken, **values, **limit)
         return say(lang, "confirm_credit" if customer else "confirm_new_credit", spoken, **values)
     if p.kind == "record_repayment":
         mode = CASH_SUFFIX[norm_lang(lang)] if d.get("payment_mode") == "cash" else ""
@@ -218,7 +236,71 @@ def handle_command(db: Session, transcript: str, lang: str | None = None, custom
                       pending=pending)
 
     _cancel_open_pending(db, merchant.id)
+    if parsed.intent == "undo":
+        return _start_undo(db, merchant, parsed, transcript, lang, customer_id)
     return _start_action(db, merchant, parsed, transcript, lang, customer_id)
+
+
+# ============================================================ undo
+UNDO_SOURCES = ("voice", "cash", "manual")  # entries the merchant made; verified link payments are real money
+
+
+def _last_undoable(db: Session, merchant_id: int, customer_id: int | None = None) -> LedgerEntry | None:
+    """The newest udhaar or cash payment the merchant entered today that hasn't been removed already."""
+    reversed_ids = select(LedgerEntry.reverses_entry_id).where(LedgerEntry.reverses_entry_id.is_not(None))
+    q = select(LedgerEntry).where(
+        LedgerEntry.merchant_id == merchant_id, LedgerEntry.type.in_(("credit", "repayment")),
+        LedgerEntry.status == "active", LedgerEntry.source.in_(UNDO_SOURCES),
+        LedgerEntry.created_at >= clock.now() - timedelta(days=1), LedgerEntry.id.not_in(reversed_ids))
+    if customer_id:
+        q = q.where(LedgerEntry.customer_id == customer_id)
+    return db.scalars(q.order_by(LedgerEntry.id.desc())).first()
+
+
+def _start_undo(db: Session, merchant: Merchant, parsed: ParsedCommand, transcript: str, lang: str,
+                customer_id: int | None = None) -> dict:
+    common = {"transcript": transcript, "parsed": parsed}
+    if not customer_id and parsed.customer_name:
+        res = resolve(db, merchant.id, parsed.customer_name)
+        customer_id = res.customer.id if res.kind == "match" else None
+    entry = _last_undoable(db, merchant.id, customer_id)
+    if entry is None:
+        db.commit()
+        return _reply(db, lang, key="nothing_to_undo", **common)
+    now = clock.now()
+    p = PendingAction(merchant_id=merchant.id, kind="undo", state="awaiting_confirm", transcript=transcript,
+                      data={"entry_id": entry.id, "entry_type": entry.type, "amount": rupees(entry.amount_paise),
+                            "items": entry.items or []},
+                      customer_id=entry.customer_id, options=[], created_at=now,
+                      expires_at=now + timedelta(minutes=settings.pending_minutes))
+    db.add(p)
+    db.commit()
+    return _reply_pending(db, lang, p, **common)
+
+
+def _execute_undo(db: Session, merchant: Merchant, p: PendingAction, lang: str, **extra) -> dict:
+    entry = db.get(LedgerEntry, (p.data or {}).get("entry_id"))
+    gone = entry is None or entry.status != "active" or db.scalar(
+        select(func.count()).select_from(LedgerEntry).where(LedgerEntry.reverses_entry_id == entry.id))
+    if gone:
+        p.state = "cancelled"
+        db.commit()
+        return _reply(db, lang, key="nothing_to_undo", **extra)
+    reversal = ledger.reverse_entry(db, entry, source="voice")
+    p.state = "done"
+    customer = db.get(Customer, entry.customer_id)
+    bal = ledger.balance_paise(db, customer.id)
+    if bal <= 0:
+        cancel_reminders(db, customer.id, "entry removed, nothing due")
+    elif customer.consent == "granted" and not customer.reminders_paused:
+        ensure_reminder(db, customer, clock.now() + timedelta(days=settings.default_due_days))
+    db.commit()
+    if customer.consent == "granted":  # they were told about the entry, so they're told it's gone
+        messaging.send(db, customer, kind="notice", body=customer_text(
+            customer.language, "entry_removed", shop=merchant.shop_name, amount=rupees(entry.amount_paise),
+            balance=rupees(max(bal, 0))))
+    return _reply(db, lang, key="undone", values={"name": customer.display_name, "balance": rupees(bal)},
+                  done={"type": "undo", "entry_id": reversal.id, "customer_id": customer.id}, **extra)
 
 
 def _start_action(db: Session, merchant: Merchant, parsed: ParsedCommand, transcript: str, lang: str,
@@ -306,6 +388,8 @@ def correct_pending(db: Session, pending_id: int, amount: int | None, lang: str 
     p = _open_pending_or_fail(db, pending_id)
     merchant = db.get(Merchant, p.merchant_id)
     lang = norm_lang(lang or merchant.language)
+    if p.kind == "undo":  # the amount of an entry being removed isn't up for correction
+        return _reply(db, lang, key="not_understood", pending=p, **extra)
     if amount is None or not 1 <= int(amount) <= settings.max_amount_rupees:
         return _reply(db, lang, key="not_understood", pending=p, warning="amount_out_of_range", **extra)
     customer = db.get(Customer, p.customer_id) if p.customer_id else None
@@ -367,6 +451,8 @@ def create_customer(db: Session, merchant: Merchant, name: str, *, phone: str | 
 
 
 def _execute(db: Session, merchant: Merchant, p: PendingAction, lang: str, **extra) -> dict:
+    if p.kind == "undo":
+        return _execute_undo(db, merchant, p, lang, **extra)
     d = p.data or {}
     customer = db.get(Customer, p.customer_id) if p.customer_id else None
     amount = d.get("amount")
@@ -843,6 +929,11 @@ def update_customer(db: Session, customer_id: int, changes: dict) -> dict:
             if same:
                 raise FlowError(f"That number is already saved for {same.display_name}.")
         customer.phone = phone
+    if "credit_limit" in changes:
+        limit = changes["credit_limit"]
+        if limit is not None and not 0 <= int(limit) <= 1_000_000:
+            raise FlowError("Enter a limit between ₹1 and ₹10,00,000, or leave it empty.")
+        customer.credit_limit = int(limit) if limit else None
     if changes.get("balance") is not None:
         balance = int(changes["balance"])
         if not 0 <= balance <= 1_000_000:
@@ -873,6 +964,47 @@ def update_customer(db: Session, customer_id: int, changes: dict) -> dict:
             cancel_reminders(db, customer.id, "consent removed")
     db.commit()
     return customer_detail(db, customer.id)
+
+
+def send_statement(db: Session, customer_id: int) -> dict:
+    """WhatsApp the customer their recent entries and balance, with a payment link if something is due."""
+    customer = db.get(Customer, customer_id)
+    if customer is None:
+        raise FlowError("Customer not found.")
+    if customer.consent != "granted":
+        raise FlowError(say("en-IN", "no_consent", name=customer.display_name))
+    merchant = db.get(Merchant, customer.merchant_id)
+    lang = customer.language
+    lines = [customer_text(lang, "statement_head", name=customer.display_name, shop=merchant.shop_name)]
+    for e in reversed(ledger.history(db, customer.id, limit=10)):
+        if e.type == "credit":
+            line = customer_text(lang, "st_credit", amount=rupees(e.amount_paise), items=items_text(e.items))
+        elif e.type == "repayment":
+            line = customer_text(lang, "st_payment", amount=rupees(e.amount_paise))
+        elif e.type == "reversal":
+            line = customer_text(lang, "st_removed", amount=rupees(e.amount_paise))
+        elif e.type == "adjustment":
+            line = customer_text(lang, "st_corrected", sign="+" if e.signed_paise > 0 else "-",
+                                 amount=rupees(e.amount_paise))
+        else:
+            continue
+        if e.status == "disputed":
+            line += customer_text(lang, "st_flagged")
+        lines.append(f"{clock.to_ist(e.created_at).strftime('%d %b')} · {line}")
+    bal = ledger.balance_paise(db, customer.id)
+    link = None
+    if bal > 0:
+        link = payments.create_link(db, merchant, customer, bal).url
+        lines += ["", customer_text(lang, "statement_total", balance=rupees(bal)),
+                  customer_text(lang, "statement_pay", link=link)]
+    else:
+        lines += ["", customer_text(lang, "statement_clear")]
+    msg = messaging.send(db, customer, kind="statement", body="\n".join(lines), link_url=link)
+    if msg.status == "no_phone":
+        raise FlowError(f"Add a phone number for {customer.display_name} first.")
+    if msg.status == "failed":
+        raise FlowError(f"Couldn't send the statement to {customer.display_name}. Check the server log and try again.")
+    return {"ok": True}
 
 
 def customer_detail(db: Session, customer_id: int) -> dict:

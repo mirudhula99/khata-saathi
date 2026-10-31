@@ -174,13 +174,16 @@ def today_summary(db: Session, merchant_id: int) -> dict:
         .where(LedgerEntry.created_at >= clock.now() - timedelta(days=2))
     ).all()
     sums = {"sales": 0, "given": 0, "collected": 0}
+    payers: set[int] = set()
     for entry in entries:
         if clock.to_ist(entry.created_at).date() != today:
             continue
+        if entry.type == "repayment" and entry.customer_id:
+            payers.add(entry.customer_id)
         if entry.type == "cash_sale":
             sums["sales"] += entry.amount_paise
         elif entry.type == "credit":
             sums["given"] += entry.amount_paise
         elif entry.type == "repayment":
             sums["collected"] += entry.amount_paise
-    return {k: rupees(v) for k, v in sums.items()}
+    return {**{k: rupees(v) for k, v in sums.items()}, "payers": len(payers)}

@@ -1,6 +1,6 @@
 // Typed client for the FastAPI routes in app/main.py. Same-origin in the built app; proxied to :8000 in `npm run dev`.
 import type {
-  ClockInfo, CommandResponse, CustomerDetail, CustomerPatch, CustomerView, Health, State, Stats, Notifications,
+  ClockInfo, CommandResponse, Today, CustomerDetail, CustomerPatch, CustomerView, Health, State, Stats, Notifications,
 } from './types';
 
 type Method = 'GET' | 'POST' | 'PATCH';
@@ -53,6 +53,8 @@ export const api = {
   customerView: (id: number) => request<CustomerView>(`/api/customer-view/${id}`),
 
   // Act
+  sendStatement: (id: number) => request<{ ok: true }>(`/api/customers/${id}/statement`, { body: {} }),
+  today: () => request<Today>('/api/today'),
   remindNow: (id: number) => request<{ ok: true }>(`/api/customers/${id}/remind`, { body: {} }),
   tts: (text: string, lang: string) => request<{ audio_url: string | null }>(`/api/tts?lang=${encodeURIComponent(lang)}&text=${encodeURIComponent(text)}`),
 

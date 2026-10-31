@@ -249,5 +249,68 @@ class GuardrailTests(unittest.TestCase):
         self.assertEqual((r["balance"], r["next_reminder_at"]), (0, None))
 
 
+    # ---------------------------------------------------------------- undo, credit limit, today, statement
+    def confirm(self, reply: dict) -> dict:
+        return self.client.post(f"/api/actions/{reply['pending']['id']}/confirm", json={}).json()
+
+    def test_undo_removes_the_last_entry_after_a_yes(self):
+        lakshmi = self.customers["Lakshmi|Gandhi Nagar"]["id"]
+        self.confirm(self.say("Lakshmi ku 150 udhaar"))
+        reply = self.say("undo")
+        self.assertEqual((reply["pending"]["kind"], reply["pending"]["amount"]), ("undo", 150))
+        self.assertIn("Remove Lakshmi's ₹150 udhaar", reply["reply_text"])
+        self.assertEqual(self.balance(lakshmi), 150)  # nothing removed before the yes
+        done = self.confirm(reply)
+        self.assertIn("Removed. Lakshmi", done["reply_text"])
+        self.assertEqual(self.balance(lakshmi), 0)
+        entries = self.client.get(f"/api/customers/{lakshmi}/ledger").json()["entries"]
+        self.assertEqual([e["type"] for e in entries[:2]], ["reversal", "credit"])  # history kept
+        self.assertIsNone(self.say("undo")["pending"])  # seeded and removed entries can't be undone
+
+    def test_undo_for_a_named_customer_and_never_a_link_payment(self):
+        ravi = self.customers["Ravi|"]["id"]
+        self.confirm(self.say("Ravi paid 90 cash"))
+        self.confirm(self.say("Lakshmi ku 150 udhaar"))
+        reply = self.say("Ravi ka last entry hatao")
+        self.assertEqual(reply["pending"]["customer"]["id"], ravi)
+        reply = self.say("Ask Ravi for 100")
+        self.confirm(reply)
+        link = self.client.get(f"/api/customer-view/{ravi}").json()["messages"][-1]["link_url"]
+        self.client.post(f"/api/pay/{link.rsplit('/', 1)[-1]}/simulate", json={})
+        reply = self.say("Ravi ka last entry hatao")  # the newest is the verified payment: skipped
+        self.assertEqual(reply["pending"]["amount"], 90)
+
+    def test_credit_limit_warns_and_stops_one_tap_saving(self):
+        ramesh = self.customers["Ramesh|Gandhi Street"]["id"]  # owes 800
+        self.client.patch(f"/api/customers/{ramesh}", json={"credit_limit": 1000})
+        reply = self.client.post("/api/command", json={"text": "Ramesh 300 udhaar", "lang": "en-IN",
+                                                       "customer_id": ramesh}).json()
+        self.assertTrue(reply["pending"]["over_limit"])
+        self.assertIn("over the ₹1,000 limit", reply["reply_text"])
+        reply = self.client.post("/api/command", json={"text": "Ramesh 100 udhaar", "lang": "en-IN",
+                                                       "customer_id": ramesh}).json()
+        self.assertFalse(reply["pending"]["over_limit"])  # 900 is within the limit
+        r = self.client.patch(f"/api/customers/{ramesh}", json={"credit_limit": None}).json()
+        self.assertIsNone(r["credit_limit"])
+
+    def test_today_summary(self):
+        self.confirm(self.say("Lakshmi ku 150 udhaar"))
+        self.confirm(self.say("Ravi paid 90 cash"))
+        today = self.client.get("/api/today").json()
+        self.assertEqual((today["given"], today["collected"], today["payers"]), (150, 90, 1))
+        self.assertIn("udhaar given ₹150", today["text"])
+        self.assertIn("collected", self.say("How was today?")["reply_text"])
+
+    def test_statement_goes_to_the_customer_with_a_pay_link(self):
+        ravi = self.customers["Ravi|"]["id"]  # owes 290
+        self.assertEqual(self.client.post(f"/api/customers/{ravi}/statement").status_code, 200)
+        msg = self.client.get(f"/api/customer-view/{ravi}").json()["messages"][-1]
+        self.assertEqual(msg["kind"], "statement")
+        self.assertIn("₹290", msg["body"])
+        self.assertTrue(msg["link_url"])
+        arjun = self.customers["Arjun|"]["id"]  # never agreed to messages
+        self.assertEqual(self.client.post(f"/api/customers/{arjun}/statement").status_code, 400)
+
+
 if __name__ == "__main__":
     unittest.main()

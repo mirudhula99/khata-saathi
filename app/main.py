@@ -21,7 +21,7 @@ from . import audio, clock, ledger, messaging, notifications, payments, sarvam, 
 from .config import STATIC_DIR, TTS_DIR, settings
 from .db import SessionLocal, get_db, init_db
 from .events import bus
-from .i18n import norm_lang
+from .i18n import norm_lang, say
 from .models import Customer, Merchant, PaymentLink
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -200,6 +200,7 @@ class CustomerPatch(BaseModel):
     language: str | None = None
     consent: str | None = None
     reminders_paused: bool | None = None
+    credit_limit: int | None = None  # rupees; null or 0 removes the limit
     reminder_note: str | None = None
 
 
@@ -327,6 +328,22 @@ def api_customer_patch(customer_id: int, body: CustomerPatch, db: Session = Depe
 def api_reminder_preview(customer_id: int, db: Session = Depends(get_db)):
     """The next reminder's text for this customer (default sentence + merchant's note + STOP line), link as a placeholder."""
     return services.reminder_preview(db, customer_id)
+
+
+@app.post("/api/customers/{customer_id}/statement")
+def api_statement(customer_id: int, db: Session = Depends(get_db)):
+    """WhatsApp the customer their recent entries, balance and a payment link."""
+    return services.send_statement(db, customer_id)
+
+
+@app.get("/api/today")
+def api_today(db: Session = Depends(get_db)):
+    """Today's totals for the home card, with the sentence Saathi speaks in the merchant's language."""
+    merchant = services.get_merchant(db)
+    summary = ledger.today_summary(db, merchant.id)
+    lang = merchant.language
+    return {**summary, "lang": lang, "text": say(lang, "today_summary", False, **summary),
+            "speak_text": say(lang, "today_summary", True, **summary)}
 
 
 @app.post("/api/customers/{customer_id}/remind")

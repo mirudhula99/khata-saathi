@@ -34,6 +34,7 @@ interface KhataState {
   newCustomer: () => Promise<void>;
   dismiss: () => void;
   remindNow: (customerId: number) => Promise<void>;
+  sendStatement: (customerId: number) => Promise<void>;
   patchCustomer: (customerId: number, patch: CustomerPatch) => Promise<boolean>;
   resolveDispute: (entryId: number, action: 'keep' | 'remove') => Promise<void>;
   fastForward: (days?: number) => Promise<void>;
@@ -114,7 +115,8 @@ export const useKhata = create<KhataState>((set, get) => {
         const res = await api.command(t, get().lang, expect.customerId);
         const p = res.pending;
         const sameCustomer = expect.customerId != null ? p?.customer?.id === expect.customerId : p != null && !p.customer;
-        if (p && p.state === 'awaiting_confirm' && p.amount === expect.amount && sameCustomer) return api.confirm(p.id, get().lang);
+        // Over the customer's credit limit: show the warning read-back instead of saving straight away.
+        if (p && p.state === 'awaiting_confirm' && p.amount === expect.amount && sameCustomer && !p.over_limit) return api.confirm(p.id, get().lang);
         return res;
       });
     },
@@ -132,6 +134,14 @@ export const useKhata = create<KhataState>((set, get) => {
         await api.remindNow(customerId);
         const c = get().state?.customers.find((x) => x.id === customerId);
         toast.success('Reminder sent', { description: c ? `${c.name} · ${inr(c.balance)} · with a payment link` : undefined });
+        await get().refresh();
+      } catch (e) { toast.error(errMsg(e)); }
+    },
+    sendStatement: async (customerId) => {
+      try {
+        await api.sendStatement(customerId);
+        const c = get().state?.customers.find((x) => x.id === customerId);
+        toast.success('Statement sent', { description: c ? `${c.name} · ${c.balance > 0 ? inr(c.balance) + ' due, with a payment link' : 'nothing due'}` : undefined });
         await get().refresh();
       } catch (e) { toast.error(errMsg(e)); }
     },
