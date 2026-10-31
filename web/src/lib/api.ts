@@ -47,6 +47,7 @@ export const api = {
   // Record
   customer: (id: number) => request<CustomerDetail>(`/api/customers/${id}`),
   addCustomer: (body: { name: string; phone?: string; note?: string }) => request<CustomerDetail>('/api/customers', { body }),
+  reminderPreview: (id: number) => request<{ text: string; note: string | null; language: string }>(`/api/customers/${id}/reminder-preview`),
   patchCustomer: (id: number, body: CustomerPatch) => request<CustomerDetail>(`/api/customers/${id}`, { method: 'PATCH', body }),
   resolveDispute: (entryId: number, action: 'keep' | 'remove') => request<{ ok: true; balance: number }>(`/api/entries/${entryId}/resolve`, { body: { action } }),
   customerView: (id: number) => request<CustomerView>(`/api/customer-view/${id}`),

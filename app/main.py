@@ -198,6 +198,7 @@ class CustomerPatch(BaseModel):
     language: str | None = None
     consent: str | None = None
     reminders_paused: bool | None = None
+    reminder_note: str | None = None
 
 
 class NewCustomerIn(BaseModel):
@@ -318,6 +319,12 @@ def api_customer(customer_id: int, db: Session = Depends(get_db)):
 @app.patch("/api/customers/{customer_id}")
 def api_customer_patch(customer_id: int, body: CustomerPatch, db: Session = Depends(get_db)):
     return services.update_customer(db, customer_id, body.model_dump(exclude_unset=True))
+
+
+@app.get("/api/customers/{customer_id}/reminder-preview")
+def api_reminder_preview(customer_id: int, db: Session = Depends(get_db)):
+    """The next reminder's text for this customer (default sentence + merchant's note + STOP line), link as a placeholder."""
+    return services.reminder_preview(db, customer_id)
 
 
 @app.post("/api/customers/{customer_id}/remind")

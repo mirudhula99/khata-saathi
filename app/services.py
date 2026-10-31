@@ -60,7 +60,8 @@ def customer_dict(db: Session, c: Customer, bal_paise: int | None = None, with_s
     data = {
         "id": c.id, "name": c.display_name, "name_latin": c.name_latin, "note": c.note, "phone": c.phone,
         "language": c.language,
-        "consent": c.consent, "reminders_paused": c.reminders_paused, "balance": rupees(bal),
+        "consent": c.consent, "reminders_paused": c.reminders_paused, "reminder_note": c.reminder_note,
+        "balance": rupees(bal),
     }
     if with_stats:
         data["stats"] = ledger.customer_stats(db, c)
@@ -525,13 +526,34 @@ def _quiet_until(when: datetime) -> datetime | None:
 SEND_FAILED = ("failed", "no_phone")
 
 
+def reminder_text(merchant: Merchant, customer: Customer, tone: int, bal_paise: int, link: str) -> str:
+    """The full WhatsApp reminder: default sentence in the customer's language, the merchant's own note for this
+    customer (if any), then the STOP footer. The payment link lives in the default sentence and is never editable."""
+    lang = customer.language
+    body = customer_text(lang, f"reminder_{tone}", name=customer.display_name, shop=merchant.shop_name,
+                         balance=rupees(bal_paise), link=link)
+    note = (customer.reminder_note or "").strip()
+    if note:
+        body = f"{body}\n{note}"
+    return f"{body}\n{customer_text(lang, 'footer')}"
+
+
+def reminder_preview(db: Session, customer_id: int) -> dict:
+    """What the next reminder would say, with a placeholder for the link. For the Reminders screen and the editor."""
+    customer = db.get(Customer, customer_id)
+    if customer is None:
+        raise FlowError("Customer not found.")
+    merchant = db.get(Merchant, customer.merchant_id)
+    bal = ledger.balance_paise(db, customer.id)
+    return {"text": reminder_text(merchant, customer, 1, bal, "[payment link]"),
+            "note": customer.reminder_note, "language": customer.language}
+
+
 def _send_reminder_message(db: Session, merchant: Merchant, customer: Customer, tone: int, bal_paise: int) -> Message:
     link = payments.create_link(db, merchant, customer, bal_paise)
     lang = customer.language
-    body = customer_text(lang, f"reminder_{tone}", name=customer.display_name, shop=merchant.shop_name,
-                         balance=rupees(bal_paise), link=link.url)
-    msg = messaging.send(db, customer, kind="reminder", body=f"{body}\n{customer_text(lang, 'footer')}",
-                         link_url=link.url)
+    body = reminder_text(merchant, customer, tone, bal_paise, link.url)
+    msg = messaging.send(db, customer, kind="reminder", body=body, link_url=link.url)
     if msg.status not in SEND_FAILED:
         _notify_merchant(merchant, "reminder_sent", "reminder_sent",
                          {"name": customer.display_name, "balance": rupees(bal_paise)}, customer_id=customer.id)
@@ -745,6 +767,9 @@ def update_customer(db: Session, customer_id: int, changes: dict) -> dict:
         customer.phone = (changes["phone"] or "").strip() or None
     if "note" in changes:
         customer.note = (changes["note"] or "").strip()
+    if "reminder_note" in changes:
+        # One short line, no line breaks: it sits between the default sentence and the STOP footer.
+        customer.reminder_note = " ".join((changes["reminder_note"] or "").split())[:200] or None
     if "language" in changes:
         customer.language = norm_lang(changes["language"])
     if "reminders_paused" in changes:

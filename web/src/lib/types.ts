@@ -25,6 +25,8 @@ export interface Customer {
   language: string;
   consent: Consent;
   reminders_paused: boolean;
+  /** Merchant's own line added to this customer's reminders (the link and STOP line are always appended). */
+  reminder_note: string | null;
   balance: number;
 }
 
@@ -173,4 +175,5 @@ export interface CustomerPatch {
   language?: string | null;
   consent?: Consent | null;
   reminders_paused?: boolean | null;
+  reminder_note?: string | null;
 }

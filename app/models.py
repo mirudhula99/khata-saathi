@@ -37,6 +37,9 @@ class Customer(Base):
     consent: Mapped[str] = mapped_column(String(16), default="pending")
     consent_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     reminders_paused: Mapped[bool] = mapped_column(Boolean, default=False)
+    # The merchant's own line for this customer's reminders ("Also, your Diwali order is ready"). The default
+    # sentence, the payment link and the STOP footer are always kept; this is added between them.
+    reminder_note: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.now)
 
 
