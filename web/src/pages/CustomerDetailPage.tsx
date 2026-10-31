@@ -166,11 +166,12 @@ export function CustomerDetailPage() {
 function EntryLine({ e }: { e: Entry }) {
   const verified = e.type === 'repayment' && (e.source === 'mock' || e.source === 'paytm');
   const cash = e.type === 'repayment' && !verified;
-  const Icon = e.type === 'credit' ? ShoppingBasket : e.type === 'reversal' ? Undo2 : verified ? IndianRupee : e.type === 'cash_sale' ? Link2 : HandCoins;
-  const iconCls = e.type === 'credit' ? 'bg-warning-bg text-warning' : e.type === 'reversal' ? 'bg-chip text-ink-3' : verified ? 'bg-success-bg text-success' : 'bg-chip text-ink-2';
+  const Icon = e.type === 'credit' ? ShoppingBasket : e.type === 'reversal' ? Undo2 : e.type === 'adjustment' ? PenLine : verified ? IndianRupee : e.type === 'cash_sale' ? Link2 : HandCoins;
+  const iconCls = e.type === 'credit' ? 'bg-warning-bg text-warning' : e.type === 'reversal' || e.type === 'adjustment' ? 'bg-chip text-ink-3' : verified ? 'bg-success-bg text-success' : 'bg-chip text-ink-2';
   const title = e.type === 'credit' ? `${inr(e.amount)}${e.items.length ? ' · ' + e.items.join(', ') : ' · udhaar'}`
     : e.type === 'repayment' ? `−${inr(e.amount)} · ${verified ? (e.source === 'paytm' ? 'Paytm' : 'payment link') : 'cash'}`
-    : e.type === 'cash_sale' ? `${inr(e.amount)} · cash sale` : `${inr(e.amount)} · entry removed`;
+    : e.type === 'cash_sale' ? `${inr(e.amount)} · cash sale`
+    : e.type === 'adjustment' ? `${e.change > 0 ? '+' : '−'}${inr(e.amount)} · balance corrected` : `${inr(e.amount)} · entry removed`;
   const sub = [timeAgo(e.created_at), e.status === 'disputed' ? 'customer says wrong' : e.customer_ack === 'ack' ? 'confirmed by customer' : e.customer_ack === 'kept' ? 'flagged, kept by you' : e.customer_ack === 'removed' ? 'flagged, removed' : e.source === 'voice' ? 'by voice' : ''].filter(Boolean).join(' · ');
   const badge = e.status === 'disputed' ? <StatusChip kind="flagged" /> : verified ? <StatusChip kind="verified" /> : cash ? <StatusChip kind="cashNoted" /> : e.type === 'reversal' ? <StatusChip kind="removed" /> : null;
   return (

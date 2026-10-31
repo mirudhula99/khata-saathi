@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { IndianRupee, PenLine, QrCode, Smartphone } from 'lucide-react';
+import { IndianRupee, PenLine, QrCode } from 'lucide-react';
 import { AppShell, HeaderBand, Scroll } from '@/components/AppShell';
 import { DashboardCards } from '@/components/DashboardCards';
 import { JoinQrDialog } from '@/components/JoinQrDialog';
@@ -69,10 +69,9 @@ export function SaathiPage({ focusMic = false }: { focusMic?: boolean }) {
 
           {/* Quick actions: only things not already in the tab bar. */}
           <PaytmCard title="Quick actions">
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <IconTile icon={PenLine} label="Add by hand" onClick={() => { setManualKind('udhaar'); setManual(true); }} />
               <IconTile icon={IndianRupee} label={<>Record<br />payment</>} onClick={() => { setManualKind('cash'); setManual(true); }} />
-              <IconTile icon={Smartphone} label={<>Customer's<br />phone</>} href="/customer" target="_blank" />
               <IconTile icon={QrCode} label={<>Join my<br />khata</>} onClick={() => setJoinQr(true)} />
             </div>
           </PaytmCard>

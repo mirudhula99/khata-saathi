@@ -72,6 +72,7 @@ def entry_dict(e: LedgerEntry) -> dict:
     return {
         "id": e.id, "type": e.type, "amount": rupees(e.amount_paise), "items": e.items or [], "source": e.source,
         "status": e.status, "customer_ack": e.customer_ack, "reverses_entry_id": e.reverses_entry_id,
+        "change": rupees(e.signed_paise),
         "created_at": e.created_at.isoformat() + "Z",
     }
 
@@ -763,8 +764,38 @@ def update_customer(db: Session, customer_id: int, changes: dict) -> dict:
     customer = db.get(Customer, customer_id)
     if customer is None:
         raise FlowError("Customer not found.")
+    if "name" in changes:
+        name = (changes["name"] or "").strip()[:120]
+        if not name:
+            raise FlowError("Enter the customer's name.")
+        if name != customer.display_name:
+            # The name is also what voice commands match against, so its matching key is rebuilt too. The old
+            # name stays as an alias, so "Ravi paid 100" still finds the customer now saved as "Ravi Kumar".
+            customer.aliases = list(dict.fromkeys([*(customer.aliases or []), customer.display_name]))
+            customer.display_name = display_name(name)
+            customer.name_latin = sarvam.transliterate_to_latin(name)
+            customer.name_key = name_key(customer.name_latin)
     if "phone" in changes:
-        customer.phone = (changes["phone"] or "").strip() or None
+        phone = (changes["phone"] or "").strip() or None
+        if phone:
+            digits = messaging.phone_digits(phone)
+            if len(digits) < 10:
+                raise FlowError("Enter a 10-digit mobile number.")
+            same = next((c for c in db.scalars(select(Customer).where(Customer.merchant_id == customer.merchant_id,
+                                                                      Customer.id != customer.id))
+                         if messaging.phone_digits(c.phone)[-10:] == digits[-10:]), None)
+            if same:
+                raise FlowError(f"That number is already saved for {same.display_name}.")
+        customer.phone = phone
+    if changes.get("balance") is not None:
+        balance = int(changes["balance"])
+        if not 0 <= balance <= 1_000_000:
+            raise FlowError("Enter an amount between ₹0 and ₹10,00,000.")
+        if ledger.adjust_balance(db, customer, balance * 100):
+            if balance <= 0:
+                cancel_reminders(db, customer.id, "balance set to zero")
+            elif customer.consent == "granted" and not customer.reminders_paused:
+                ensure_reminder(db, customer, clock.now() + timedelta(days=settings.default_due_days))
     if "note" in changes:
         customer.note = (changes["note"] or "").strip()
     if "reminder_note" in changes:

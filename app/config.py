@@ -52,7 +52,7 @@ class Settings:
         self.clock_file = Path(_str("CLOCK_FILE", str(DATA_DIR / "clock_offset.txt")))
         self.public_base_url = _str("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
         self.shop_name = _str("SHOP_NAME", "Shanthi Stores")
-        self.merchant_language = _str("MERCHANT_LANGUAGE", "ta-IN")
+        self.merchant_language = _str("MERCHANT_LANGUAGE", "kn-IN")
         self.http_timeout = float(_str("HTTP_TIMEOUT", "20"))
 
         # Messaging: "simulator" (default) or "whatsapp"

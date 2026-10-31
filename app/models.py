@@ -48,7 +48,7 @@ class LedgerEntry(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     merchant_id: Mapped[int] = mapped_column(ForeignKey("merchants.id"), index=True)
     customer_id: Mapped[Optional[int]] = mapped_column(ForeignKey("customers.id"), index=True, nullable=True)
-    # credit | repayment | cash_sale | reversal
+    # credit | repayment | cash_sale | reversal | adjustment (merchant corrected the balance)
     type: Mapped[str] = mapped_column(String(16))
     amount_paise: Mapped[int] = mapped_column(Integer)
     # +credit, -repayment, 0 cash sale, reversal = minus the reversed entry

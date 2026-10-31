@@ -42,6 +42,21 @@ def reverse_entry(db: Session, entry: LedgerEntry, source: str = "manual") -> Le
     return reversal
 
 
+def adjust_balance(db: Session, customer: Customer, target_paise: int) -> LedgerEntry | None:
+    """The merchant corrects what a customer owes. History is never edited: the difference is added as an
+    "adjustment" row (+ owes more, - owes less), so the old entries and the correction both stay visible."""
+    delta = target_paise - balance_paise(db, customer.id)
+    if delta == 0:
+        return None
+    entry = LedgerEntry(
+        merchant_id=customer.merchant_id, customer_id=customer.id, type="adjustment", amount_paise=abs(delta),
+        signed_paise=delta, items=[], source="manual", status="active", created_at=clock.now(),
+    )
+    db.add(entry)
+    db.flush()
+    return entry
+
+
 def balance_paise(db: Session, customer_id: int) -> int:
     total = db.scalar(
         select(func.coalesce(func.sum(LedgerEntry.signed_paise), 0))

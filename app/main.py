@@ -193,6 +193,8 @@ class MerchantIn(BaseModel):
 
 
 class CustomerPatch(BaseModel):
+    name: str | None = None
+    balance: int | None = None  # what the customer owes now, in rupees; the difference is booked as an adjustment
     phone: str | None = None
     note: str | None = None
     language: str | None = None

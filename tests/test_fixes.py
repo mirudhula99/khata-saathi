@@ -218,5 +218,36 @@ class GuardrailTests(unittest.TestCase):
             self.assertNotIn("days", reply["reply_text"])
 
 
+    # ---------------------------------------------------------------- editing a customer
+    def test_edit_customer_name_phone_and_identifier(self):
+        ravi = self.customers["Ravi|"]["id"]
+        r = self.client.patch(f"/api/customers/{ravi}", json={"name": "ravi kumar", "phone": "9123456789",
+                                                              "note": "Temple Street"}).json()
+        self.assertEqual((r["name"], r["phone"], r["note"]), ("Ravi Kumar", "9123456789", "Temple Street"))
+        reply = self.say("Ravi paid 100 cash")  # the old name still matches, kept as an alias
+        self.assertEqual(reply["pending"]["customer"]["id"], ravi)
+
+    def test_phone_already_used_by_another_customer_is_refused(self):
+        ravi, suresh = self.customers["Ravi|"]["id"], self.customers["Suresh|"]["id"]
+        self.client.patch(f"/api/customers/{ravi}", json={"phone": "9123456789"})
+        r = self.client.patch(f"/api/customers/{suresh}", json={"phone": "+91 91234 56789"})
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(self.client.patch(f"/api/customers/{suresh}", json={"name": " "}).status_code, 400)
+
+    def test_setting_the_balance_adds_an_adjustment_and_keeps_history(self):
+        ramesh = self.customers["Ramesh|Gandhi Street"]["id"]  # owes 800
+        before = len(self.client.get(f"/api/customers/{ramesh}/ledger").json()["entries"])
+        r = self.client.patch(f"/api/customers/{ramesh}", json={"balance": 500}).json()
+        self.assertEqual(r["balance"], 500)
+        entries = self.client.get(f"/api/customers/{ramesh}/ledger").json()["entries"]
+        self.assertEqual(len(entries), before + 1)
+        self.assertEqual((entries[0]["type"], entries[0]["change"]), ("adjustment", -300))
+        self.client.patch(f"/api/customers/{ramesh}", json={"balance": 500})  # same amount: no new row
+        self.assertEqual(len(self.client.get(f"/api/customers/{ramesh}/ledger").json()["entries"]), before + 1)
+        self.assertEqual(self.client.patch(f"/api/customers/{ramesh}", json={"balance": -5}).status_code, 400)
+        r = self.client.patch(f"/api/customers/{ramesh}", json={"balance": 0}).json()
+        self.assertEqual((r["balance"], r["next_reminder_at"]), (0, None))
+
+
 if __name__ == "__main__":
     unittest.main()

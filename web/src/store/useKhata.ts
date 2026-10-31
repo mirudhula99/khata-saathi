@@ -22,6 +22,7 @@ interface KhataState {
 
   refresh: () => Promise<void>;
   setLang: (l: LangCode) => Promise<void>;
+  updateShop: (shop: { shop_name: string; phone: string }) => Promise<boolean>;
   command: (text: string, customerId?: number, viaVoice?: boolean) => Promise<void>;
   addCustomer: (name: string) => Promise<number | null>;
   formEntry: (text: string, expect: { amount: number; customerId?: number }) => Promise<void>;
@@ -33,7 +34,7 @@ interface KhataState {
   newCustomer: () => Promise<void>;
   dismiss: () => void;
   remindNow: (customerId: number) => Promise<void>;
-  patchCustomer: (customerId: number, patch: CustomerPatch) => Promise<void>;
+  patchCustomer: (customerId: number, patch: CustomerPatch) => Promise<boolean>;
   resolveDispute: (entryId: number, action: 'keep' | 'remove') => Promise<void>;
   fastForward: (days?: number) => Promise<void>;
   runReminders: () => Promise<void>;
@@ -65,7 +66,7 @@ export const useKhata = create<KhataState>((set, get) => {
   const pendingId = () => get().pending?.id ?? null;
 
   return {
-    state: null, error: null, loading: false, lang: 'ta-IN',
+    state: null, error: null, loading: false, lang: 'kn-IN',
     pending: null, lastReply: null, lastTranscript: null, lastWarning: null, lastDone: null, doneSeq: 0, viaVoice: false,
 
     refresh: async () => {
@@ -82,6 +83,15 @@ export const useKhata = create<KhataState>((set, get) => {
     setLang: async (lang) => {
       set({ lang });
       try { await api.patchMerchant({ language: lang }); await get().refresh(); } catch (e) { toast.error(errMsg(e)); }
+    },
+
+    updateShop: async (shop) => {
+      try {
+        await api.patchMerchant(shop);
+        toast.success('Shop details saved');
+        await get().refresh();
+        return true;
+      } catch (e) { toast.error(errMsg(e)); return false; }
     },
 
     command: async (text, customerId, viaVoice = false) => { const t = text.trim(); if (!t) return; set({ viaVoice }); await run(() => api.command(t, get().lang, customerId)); },
@@ -126,7 +136,7 @@ export const useKhata = create<KhataState>((set, get) => {
       } catch (e) { toast.error(errMsg(e)); }
     },
     patchCustomer: async (customerId, patch) => {
-      try { await api.patchCustomer(customerId, patch); set((s) => ({ doneSeq: s.doneSeq + 1 })); await get().refresh(); } catch (e) { toast.error(errMsg(e)); }
+      try { await api.patchCustomer(customerId, patch); set((s) => ({ doneSeq: s.doneSeq + 1 })); await get().refresh(); return true; } catch (e) { toast.error(errMsg(e)); return false; }
     },
     resolveDispute: async (entryId, action) => {
       try {

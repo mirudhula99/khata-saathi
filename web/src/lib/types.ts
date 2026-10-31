@@ -46,7 +46,7 @@ export interface Stats {
   repayments_count: number;
 }
 
-export type EntryType = 'credit' | 'repayment' | 'cash_sale' | 'reversal';
+export type EntryType = 'credit' | 'repayment' | 'cash_sale' | 'reversal' | 'adjustment';
 /** services.entry_dict */
 export interface Entry {
   id: number;
@@ -57,6 +57,7 @@ export interface Entry {
   status: 'active' | 'disputed';
   customer_ack: string | null; // null | ack | disputed | kept | removed
   reverses_entry_id: number | null;
+  change: number; // signed rupees: + owes more, - owes less (adjustments use it for direction)
   created_at: string;
 }
 
@@ -170,6 +171,8 @@ export interface MerchantEvent {
 }
 
 export interface CustomerPatch {
+  name?: string;
+  balance?: number; // what the customer owes now; the server books the difference as an adjustment
   phone?: string | null;
   note?: string | null;
   language?: string | null;

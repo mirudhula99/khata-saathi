@@ -48,7 +48,6 @@ export function MicHero({ autoFocus = false, correctionHint = false, after }: { 
     : serverVoice
       ? (rec.error || (rec.recording ? 'Listening… tap to stop' : 'Tap, speak, tap again'))
       : (ws.interim || (ws.listening ? 'Listening…' : ws.supported ? 'Tap and speak an entry, or ask' : 'Mic needs Chrome or Edge. Type below.'));
-  const hearing = serverVoice ? 'Sarvam' : health && !health.voice ? 'browser speech · add SARVAM_API_KEY for Sarvam' : health && !health.ffmpeg ? 'browser speech · install ffmpeg for Sarvam' : '';
 
   return (
     <>
@@ -75,7 +74,6 @@ export function MicHero({ autoFocus = false, correctionHint = false, after }: { 
               : <div className="font-display text-center text-[19px] font-extrabold leading-tight text-blue">{status}</div>}
           </div>
           {listening && <div className="-mt-2 text-[12px] text-ink-2">{status}</div>}
-          {hearing && <div className="-mt-2 text-[11px] text-ink-3">Hearing: {hearing}</div>}
 
           {/* "or type it": a 44px grey pill with a sky send button. */}
           <form onSubmit={submit} className="flex h-11 w-full items-center gap-2 rounded-full bg-chip pl-4 pr-0 focus-within:ring-2 focus-within:ring-sky/40">
