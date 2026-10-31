@@ -30,8 +30,8 @@ function TabBar() {
   return (
     <nav className="relative z-10 grid shrink-0 grid-cols-4 bg-card pb-[max(env(safe-area-inset-bottom),6px)] pt-0.5 shadow-up">
       {item('/', t('Saathi'), Mic)}
-      {item('/khata', t('Khata'), BookOpen)}
       {item('/reminders', t('Reminders'), BellRing)}
+      {item('/khata', t('Khata'), BookOpen)}
       {item('/account', t('More'), LayoutGrid)}
     </nav>
   );
